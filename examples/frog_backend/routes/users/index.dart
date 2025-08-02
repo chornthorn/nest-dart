@@ -1,6 +1,6 @@
 import 'package:dart_frog/dart_frog.dart';
-import 'package:my_project/modules/core_module.dart';
-import 'package:my_project/modules/user_module.dart';
+import 'package:nest_frog_backend/modules/core_module.dart';
+import 'package:nest_frog_backend/modules/user_module.dart';
 import 'package:nest_frog/nest_frog.dart';
 
 Future<Response> onRequest(RequestContext context) async {

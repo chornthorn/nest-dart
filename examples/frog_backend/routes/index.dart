@@ -1,5 +1,5 @@
 import 'package:dart_frog/dart_frog.dart';
-import 'package:my_project/modules/core_module.dart';
+import 'package:nest_frog_backend/modules/core_module.dart';
 import 'package:nest_frog/nest_frog.dart';
 
 Response onRequest(RequestContext context) {
