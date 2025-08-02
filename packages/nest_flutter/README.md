@@ -18,8 +18,7 @@ Add `nest_flutter` to your `pubspec.yaml`:
 dependencies:
   flutter:
     sdk: flutter
-  nest_core: ^0.1.0
-  nest_flutter: ^0.1.0
+  nest_flutter: ^0.1.1
 ```
 
 ## Quick Start
@@ -27,7 +26,7 @@ dependencies:
 ### 1. Create Your Module
 
 ```dart
-import 'package:nest_core/nest_core.dart';
+import 'package:nest_flutter/nest_flutter.dart';
 
 class AppModule extends Module {
   @override

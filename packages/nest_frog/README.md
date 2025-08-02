@@ -16,8 +16,7 @@ Add `nest_frog` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  nest_core: ^0.1.0
-  nest_frog: ^0.1.0
+  nest_frog: ^0.1.1
   dart_frog: ^1.1.0
 ```
 
@@ -26,7 +25,7 @@ dependencies:
 ### 1. Create Your Modules
 
 ```dart
-import 'package:nest_core/nest_core.dart';
+import 'package:nest_frog/nest_frog.dart';
 
 class AppModule extends Module {
   @override

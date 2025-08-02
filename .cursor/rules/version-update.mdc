@@ -1,0 +1,49 @@
+---
+description: Version update consistency across packages and documentation
+---
+
+# Version Update Rule
+
+When updating package versions in this monorepo, ensure ALL references are updated consistently across the entire codebase.
+
+## Files to Update When Changing Package Versions:
+
+### Package Files:
+- [packages/nest_core/pubspec.yaml](mdc:packages/nest_core/pubspec.yaml) - Core package version
+- [packages/nest_flutter/pubspec.yaml](mdc:packages/nest_flutter/pubspec.yaml) - Flutter package version  
+- [packages/nest_frog/pubspec.yaml](mdc:packages/nest_frog/pubspec.yaml) - Frog package version
+
+### Package Documentation:
+- [packages/nest_core/README.md](mdc:packages/nest_core/README.md) - Version references in installation
+- [packages/nest_core/CHANGELOG.md](mdc:packages/nest_core/CHANGELOG.md) - New version entry
+- [packages/nest_flutter/README.md](mdc:packages/nest_flutter/README.md) - Version references in installation
+- [packages/nest_flutter/CHANGELOG.md](mdc:packages/nest_flutter/CHANGELOG.md) - New version entry
+- [packages/nest_frog/README.md](mdc:packages/nest_frog/README.md) - Version references in installation
+- [packages/nest_frog/CHANGELOG.md](mdc:packages/nest_frog/CHANGELOG.md) - New version entry
+
+### Documentation Site:
+- [docs/pages/getting-started.mdx](mdc:docs/pages/getting-started.mdx) - Installation examples for all platforms
+- [docs/pages/core-guide.mdx](mdc:docs/pages/core-guide.mdx) - nest_core version references
+- [docs/pages/flutter-guide.mdx](mdc:docs/pages/flutter-guide.mdx) - nest_flutter version references
+- [docs/pages/frog-guide.mdx](mdc:docs/pages/frog-guide.mdx) - nest_frog version references
+
+## Version Update Checklist:
+
+1. **Update pubspec.yaml files** with new version numbers
+2. **Add CHANGELOG.md entries** with release date and features
+3. **Update README.md files** with new version in installation examples
+4. **Update documentation guides** with new version references
+5. **Check all code examples** use correct import statements
+6. **Verify dependency references** match the new versions
+
+## Version Format:
+- Use semantic versioning (e.g., `0.1.0`, `0.1.1`, `1.0.0`)
+- Use caret notation in examples (e.g., `^0.1.1`)
+- Keep consistent date format in changelogs: `YYYY-MM-DD`
+
+## Current Package Versions:
+- nest_core: 0.1.0
+- nest_flutter: 0.1.1 (re-exports nest_core)
+- nest_frog: 0.1.1 (re-exports nest_core)
+
+Remember: nest_flutter and nest_frog re-export nest_core, so users only need the platform-specific package.
