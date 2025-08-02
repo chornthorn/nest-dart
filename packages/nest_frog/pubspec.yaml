@@ -1,17 +1,18 @@
 name: nest_frog
-description: A starting point for Dart libraries or applications.
+description: Dart Frog integration for Nest Dart - bringing dependency injection and modular architecture to Dart Frog backend applications.
 version: 0.1.0
 resolution: workspace
-
-publish_to: none
+homepage: https://chornthorn.github.io/nest-dart
+repository: https://github.com/chornthorn/nest-dart
+issue_tracker: https://github.com/chornthorn/nest-dart/issues
+documentation: https://chornthorn.github.io/nest-dart/frog-guide
 
 environment:
   sdk: ^3.8.1
 
 # Add regular dependencies here.
 dependencies:
-  nest_core:
-    path: ../nest_core
+  nest_core: ^0.1.0
   dart_frog: ^1.1.0
 
 dev_dependencies:

@@ -1,7 +1,11 @@
 name: nest_core
-description: A starting point for Dart libraries or applications.
+description: Core dependency injection and module system for Nest Dart - a NestJS-inspired framework for building modular Dart applications.
 version: 0.1.0
 resolution: workspace
+homepage: https://chornthorn.github.io/nest-dart
+repository: https://github.com/chornthorn/nest-dart
+issue_tracker: https://github.com/chornthorn/nest-dart/issues
+documentation: https://chornthorn.github.io/nest-dart/core-guide
 
 environment:
   sdk: ^3.8.1

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:get_it/get_it.dart';
-import 'dart:developer';
 
 import 'package:logger/web.dart';
 

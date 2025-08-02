@@ -1,9 +1,11 @@
 name: nest_flutter
-description: A starting point for Dart libraries or applications.
+description: Flutter integration for Nest Dart - bringing dependency injection and modular architecture to Flutter applications.
 version: 0.1.0
-publish_to: none
-
 resolution: workspace
+homepage: https://chornthorn.github.io/nest-dart
+repository: https://github.com/chornthorn/nest-dart
+issue_tracker: https://github.com/chornthorn/nest-dart/issues
+documentation: https://chornthorn.github.io/nest-dart/flutter-guide
 
 environment:
   sdk: ^3.8.1
@@ -12,8 +14,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  nest_core:
-    path: ../../packages/nest_core
+  nest_core: ^0.1.0
 
 dev_dependencies:
   lints: ^5.0.0
