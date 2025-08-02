@@ -1,0 +1,91 @@
+version: 2
+updates:
+  # Root level dependencies
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "dart"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Example app dependencies
+  - package-ecosystem: "pub"
+    directory: "/example"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "example"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Documentation dependencies
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docs"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Modular Core package dependencies
+  - package-ecosystem: "pub"
+    directory: "/packages/modular_core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "modular_core"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Modular Flutter package dependencies
+  - package-ecosystem: "pub"
+    directory: "/packages/modular_flutter"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "modular_flutter"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # ViewModel package dependencies
+  - package-ecosystem: "pub"
+    directory: "/packages/viewmodel"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "viewmodel"
+    commit-message:
+      prefix: "deps"
+      include: "scope"

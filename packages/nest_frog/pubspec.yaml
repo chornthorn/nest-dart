@@ -1,0 +1,19 @@
+name: nest_frog
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+resolution: workspace
+
+publish_to: none
+
+environment:
+  sdk: ^3.8.1
+
+# Add regular dependencies here.
+dependencies:
+  nest_core:
+    path: ../nest_core
+  dart_frog: ^1.1.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0

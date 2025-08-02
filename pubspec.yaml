@@ -1,0 +1,51 @@
+name: nest_dart
+
+workspace:
+  - packages/nest_core
+  - packages/nest_flutter
+  - packages/nest_frog
+
+environment:
+  sdk: ">=3.8.1 <4.0.0"
+
+dev_dependencies:
+  melos: ^7.0.0-dev.9
+
+melos:
+  scripts:
+    # Run tests for all packages
+    test:
+      description: Run tests for all packages
+      steps:
+        - melos run setup
+        - melos exec --concurrency=3 --fail-fast -- dart test
+      packageFilters:
+        dirExists: "test"
+
+    # Format code for all packages
+    format:
+      description: Format code for all packages
+      run: dart format . --set-exit-if-changed
+
+    # Analyze code for all packages
+    analyze:
+      description: Analyze code for all packages
+      steps:
+        - dart analyze
+
+    # Clean all packages
+    clean:
+      description: Clean all packages
+      run: flutter clean
+      packageFilters:
+        flutter: true
+
+    # Get dependencies for all packages
+    get:
+      description: Get dependencies for all packages
+      run: dart pub get
+
+    # Check for outdated dependencies
+    outdated:
+      description: Check for outdated dependencies
+      run: dart pub outdated
