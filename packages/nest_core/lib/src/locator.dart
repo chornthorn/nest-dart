@@ -10,6 +10,13 @@ abstract class Locator {
     dynamic param2,
   });
 
+  /// Get a service instance asynchronously
+  Future<T> getAsync<T extends Object>({
+    String? instanceName,
+    dynamic param1,
+    dynamic param2,
+  });
+
   /// Call method for syntactic sugar (same as get)
   T call<T extends Object>({
     String? instanceName,

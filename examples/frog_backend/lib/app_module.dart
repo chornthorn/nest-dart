@@ -10,5 +10,5 @@ class AppModule extends Module {
   List<Module> get imports => [DatabaseModule(), CoreModule(), UserModule()];
 
   @override
-  void providers(Locator _) {}
+  Future<void> providers(Locator locator) async {}
 }

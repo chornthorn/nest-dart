@@ -13,6 +13,9 @@ dependencies:
     path: ../../packages/nest_core
   nest_flutter:
     path: ../../packages/nest_flutter
+  http: any
+  provider: any
+  shared_preferences: any    
 
 dev_dependencies:
   flutter_test:

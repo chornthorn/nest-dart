@@ -114,18 +114,19 @@ abstract class Module {
 
   /// Configure providers/services for dependency injection
   /// This method should register all services this module provides
-  void providers(Locator locator);
+  /// Can be async to support services that require async initialization (e.g., SharedPreferences)
+  Future<void> providers(Locator locator) async {}
 
   /// List of provider types that this module exports to other modules
   /// Only exported services can be accessed by modules that import this module
   List<Type> get exports => [];
 
   /// Internal method to register this module and its dependencies
-  void _register(
+  Future<void> _register(
     GetIt getIt,
     Set<Type> registeredModules,
     ModuleContext context,
-  ) {
+  ) async {
     final moduleType = runtimeType;
 
     // Prevent circular dependencies and duplicate registrations
@@ -144,19 +145,19 @@ abstract class Module {
 
     // Register all imported modules first to establish dependency chain
     for (final importedModule in imports) {
-      importedModule._register(getIt, registeredModules, context);
+      await importedModule._register(getIt, registeredModules, context);
     }
 
     // Create a scoped container that enforces access restrictions for this module
     final scopedGetIt = _ScopedGetIt(getIt, context, moduleType);
 
     // Register this module's services using the scoped container
-    providers(scopedGetIt);
+    await providers(scopedGetIt);
   }
 
   /// Public method to register this module
-  void register(GetIt getIt, ModuleContext context) {
-    _register(getIt, <Type>{}, context);
+  Future<void> register(GetIt getIt, ModuleContext context) async {
+    await _register(getIt, <Type>{}, context);
   }
 
   /// Called after module registration and dependency resolution
@@ -207,6 +208,29 @@ class _ScopedGetIt implements Locator {
     }
 
     return _delegate.get<T>(
+      instanceName: instanceName,
+      param1: param1,
+      param2: param2,
+    );
+  }
+
+  @override
+  Future<T> getAsync<T extends Object>({
+    String? instanceName,
+    dynamic param1,
+    dynamic param2,
+  }) async {
+    // Verify this module has permission to access the requested service
+    if (!_context.canAccess(_moduleType, T)) {
+      final providerModule = _context.serviceToModule[T];
+      throw ServiceNotExportedException(
+        T,
+        providerModule ?? Object,
+        _moduleType,
+      );
+    }
+
+    return _delegate.getAsync<T>(
       instanceName: instanceName,
       param1: param1,
       param2: param2,

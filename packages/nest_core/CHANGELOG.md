@@ -5,6 +5,14 @@ All notable changes to the `nest_core` package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-08-02
+
+### Added
+- **Async providers support** - The `providers` method now supports async/await for services requiring async initialization (e.g., SharedPreferences)
+
+### Fixed
+- **Module registration** - Fixed async provider registration to properly await service initialization
+
 ## [0.1.0] - 2025-08-02
 
 ### Added

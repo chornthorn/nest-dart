@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Re-exports nest_core** for convenience - no need to add nest_core separately to your pubspec.yaml
+- **Enhanced getAsync method** - Added support for param1 and param2 parameters in Modular.getAsync() and ModularContext.getAsync()
 
 ## [0.1.0] - 2025-08-02
 

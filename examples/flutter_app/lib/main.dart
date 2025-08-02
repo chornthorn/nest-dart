@@ -1,340 +1,93 @@
 import 'package:flutter/material.dart';
-import 'package:nest_core/nest_core.dart';
 import 'package:nest_flutter/nest_flutter.dart';
+import 'package:provider/provider.dart' hide Locator;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'services/todo_service.dart';
+import 'providers/todo_provider.dart';
+import 'views/todo_list_view.dart';
+import 'utils/config_preference.dart';
+import 'package:http/http.dart' show Client;
 
-// Simple data service
-class UserService {
-  final List<String> _users = ['Alice', 'Bob', 'Charlie', 'Diana'];
-
-  List<String> getAllUsers() => List.from(_users);
-
-  void addUser(String name) {
-    _users.add(name);
-  }
-}
-
-// Simple counter service
-class CounterService {
-  int _count = 0;
-
-  int get count => _count;
-
-  void increment() => _count++;
-  void decrement() => _count--;
-  void reset() => _count = 0;
-}
-
-// App configuration
-class AppConfig {
-  final String appName;
-  final String version;
-
-  const AppConfig({required this.appName, required this.version});
-}
-
-// Services module
-class ServicesModule extends Module {
+class CoreModule extends Module {
   @override
-  void providers(Locator locator) {
-    locator.registerSingleton<UserService>(UserService());
-    locator.registerSingleton<CounterService>(CounterService());
+  Future<void> providers(Locator locator) async {
+    locator.registerSingleton<Client>(Client());
+    final prefs = await SharedPreferences.getInstance();
+    locator.registerSingleton<SharedPreferences>(prefs);
+    locator.registerSingleton<ConfigPreference>(ConfigPreference(prefs));
   }
 
   @override
-  List<Type> get exports => [CounterService];
+  List<Type> get exports => [Client, SharedPreferences, ConfigPreference];
 }
 
-// Config module
-class ConfigModule extends Module {
+class TodoModule extends Module {
   @override
-  void providers(Locator locator) {
-    locator.registerSingleton<AppConfig>(
-      const AppConfig(appName: 'My App', version: '1.0.0'),
+  List<Module> get imports => [CoreModule()];
+
+  @override
+  Future<void> providers(Locator locator) async {
+    locator.registerSingleton<TodoService>(
+      JsonPlaceholderTodoService(client: locator.get<Client>()),
+    );
+    locator.registerSingleton<TodoProvider>(
+      TodoProvider(locator.get<TodoService>(), locator.get<ConfigPreference>()),
+    );
+
+    locator.registerSingleton<ServiceDemo>(
+      ServiceDemo(locator.get<SharedPreferences>()),
     );
   }
 
   @override
-  List<Type> get exports => [AppConfig];
+  List<Type> get exports => [TodoService, TodoProvider];
 }
 
-class FeatureAService {
-  final String message;
-  final CounterService counterService;
-  final AppConfig appConfig;
+class ServiceDemo {
+  final SharedPreferences prefs;
 
-  FeatureAService({
-    required this.message,
-    required this.counterService,
-    required this.appConfig,
-  });
-
-  int get count => counterService.count;
-
-  void increment() {
-    counterService.increment();
-  }
-
-  void decrement() {
-    counterService.decrement();
-  }
-
-  void reset() {
-    counterService.reset();
-  }
-
-  String get appName => appConfig.appName;
+  ServiceDemo(this.prefs);
 }
 
-class FeatureAModule extends Module {
-  @override
-  List<Module> get imports => [ServicesModule(), ConfigModule()];
-
-  @override
-  void providers(Locator locator) {
-    locator.registerSingleton<FeatureAService>(
-      FeatureAService(
-        message: 'Feature A',
-        counterService: locator.get<CounterService>(),
-        appConfig: locator.get<AppConfig>(),
-      ),
-    );
-  }
-}
-
-// Main app module
 class AppModule extends Module {
   @override
-  List<Module> get imports => [
-    ServicesModule(),
-    ConfigModule(),
-    FeatureAModule(),
-  ];
+  List<Module> get imports => [CoreModule(), TodoModule()];
 
   @override
-  void providers(Locator _) {}
+  Future<void> providers(Locator _) async {}
 }
 
 void main() {
-  runApp(ModularApp(module: AppModule(), child: const MyApp()));
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final config = Modular.get<AppConfig>();
-    return MaterialApp(
-      title: config.appName,
-      theme: ThemeData(primarySwatch: Colors.blue),
-      // home: const HomePage(),
-      home: const FeatureAWidget(),
-    );
-  }
-}
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  final TextEditingController _nameController = TextEditingController();
-
-  // Get services using the clean Modular API
-  UserService get _userService => Modular.get<UserService>();
-  CounterService get _counterService => Modular.get<CounterService>();
-  AppConfig get _config => Modular.get<AppConfig>();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${_config.appName} v${_config.version}'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Counter Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Counter Service Demo',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Count: ${_counterService.count}',
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _counterService.decrement();
-                            });
-                          },
-                          child: const Text('-'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _counterService.reset();
-                            });
-                          },
-                          child: const Text('Reset'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _counterService.increment();
-                            });
-                          },
-                          child: const Text('+'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // User Service Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    const Text(
-                      'User Service Demo',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Enter name',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_nameController.text.isNotEmpty) {
-                              setState(() {
-                                _userService.addUser(_nameController.text);
-                                _nameController.clear();
-                              });
-                            }
-                          },
-                          child: const Text('Add'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Users:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            ),
-
-            // Users List
-            Expanded(
-              child: Card(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  itemCount: _userService.getAllUsers().length,
-                  itemBuilder: (context, index) {
-                    final users = _userService.getAllUsers();
-                    return ListTile(
-                      leading: CircleAvatar(child: Text('${index + 1}')),
-                      title: Text(users[index]),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    ModularApp(
+      module: AppModule(),
+      loading: MaterialApp(
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
         ),
+        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
-    );
-  }
+      child: const MainApp(),
+    ),
+  );
 }
 
-class FeatureAWidget extends StatefulWidget {
-  const FeatureAWidget({super.key});
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
 
-  @override
-  State<FeatureAWidget> createState() => _FeatureAWidgetState();
-}
-
-class _FeatureAWidgetState extends State<FeatureAWidget> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(Modular.get<FeatureAService>().appName)),
-      body: Center(
-        child: Column(
-          children: [
-            Text('Message: ${Modular.get<FeatureAService>().message}'),
-
-            Text('Count: ${Modular.get<FeatureAService>().count}'),
-          ],
+    return ChangeNotifierProvider(
+      create: (context) => Modular.get<TodoProvider>(),
+      child: MaterialApp(
+        title: 'Todo App',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
         ),
-      ),
-      floatingActionButton: Row(
-        children: [
-          FloatingActionButton(
-            onPressed: () {
-              Modular.get<FeatureAService>().increment();
-              setState(() {});
-            },
-            child: const Icon(Icons.add),
-          ),
-          FloatingActionButton(
-            onPressed: () {
-              Modular.get<FeatureAService>().decrement();
-              setState(() {});
-            },
-            child: const Icon(Icons.remove),
-          ),
-        ],
+        home: const TodoListView(),
       ),
     );
   }

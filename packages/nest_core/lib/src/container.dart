@@ -31,7 +31,7 @@ class ApplicationContainer {
   Future<void> registerModule(Module module) async {
     if (!_modules.contains(module)) {
       _modules.add(module);
-      module.register(_getIt, _context);
+      await module.register(_getIt, _context);
 
       // Register this module as an import of the root application container
       _context.registerModuleImports(_rootModuleType, [module.runtimeType]);

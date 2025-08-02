@@ -120,7 +120,7 @@ class UserModule extends Module {
   List<Module> get imports => [DatabaseModule(), CoreModule()];
 
   @override
-  void providers(Locator locator) {
+  Future<void> providers(Locator locator) async {
     locator.registerSingleton<UserRepository>(
       UserRepository(
         locator.get<DatabaseService>(),

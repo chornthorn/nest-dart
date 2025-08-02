@@ -78,12 +78,14 @@ class ModularApp extends StatefulWidget {
   final Module module;
   final Widget child;
   final ApplicationContainer? container;
+  final Widget? loading;
 
   const ModularApp({
     super.key,
     required this.module,
     required this.child,
     this.container,
+    this.loading,
   });
 
   @override
@@ -91,44 +93,63 @@ class ModularApp extends StatefulWidget {
 }
 
 class _ModularAppState extends State<ModularApp> {
-  late ApplicationContainerNotifier _containerNotifier;
+  ApplicationContainerNotifier? _containerNotifier;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _initializeContainer();
+  }
 
-    // Determine which modules to use
-    final List<Module> modulesToRegister;
-    modulesToRegister = [widget.module];
+  Future<void> _initializeContainer() async {
+    // Create container
+    final container = widget.container ?? ApplicationContainer();
 
-    // Create container notifier with modules
-    _containerNotifier = ApplicationContainerNotifier.withModules(
-      modulesToRegister,
-      widget.container,
-    );
+    // Register module asynchronously
+    await container.registerModule(widget.module);
+
+    // Create notifier with the initialized container
+    _containerNotifier = ApplicationContainerNotifier(container);
 
     // Set as global container
-    Modular._setGlobalContainer(_containerNotifier);
+    Modular._setGlobalContainer(_containerNotifier!);
+
+    // Mark as initialized and rebuild
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
   @override
   void dispose() {
     // Clear global container when app is disposed
     Modular._clearGlobalContainer();
-    _containerNotifier.dispose();
+    _containerNotifier?.dispose();
     super.dispose();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    Modular._setGlobalContainer(_containerNotifier);
+    if (_containerNotifier != null) {
+      Modular._setGlobalContainer(_containerNotifier!);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized || _containerNotifier == null) {
+      return widget.loading ??
+          const MaterialApp(
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
+          );
+    }
+
     return ApplicationContainerProvider(
-      notifier: _containerNotifier,
+      notifier: _containerNotifier!,
       child: widget.child,
     );
   }

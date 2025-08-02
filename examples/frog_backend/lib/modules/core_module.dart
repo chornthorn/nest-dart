@@ -34,7 +34,7 @@ class LoggerService {
 
 class CoreModule extends Module {
   @override
-  void providers(Locator locator) {
+  Future<void> providers(Locator locator) async {
     locator.registerSingleton<ConfigService>(ConfigService());
     locator.registerSingleton<LoggerService>(LoggerService());
   }

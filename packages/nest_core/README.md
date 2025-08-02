@@ -16,7 +16,7 @@ Add `nest_core` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  nest_core: ^0.1.0
+  nest_core: ^0.1.1
 ```
 
 ## Quick Start
@@ -38,7 +38,7 @@ import 'package:nest_core/nest_core.dart';
 
 class CoreModule extends Module {
   @override
-  void providers(Locator locator) {
+  Future<void> providers(Locator locator) async {
     locator.registerSingleton<LoggerService>(LoggerService());
   }
   
@@ -88,7 +88,7 @@ class UserModule extends Module {
   List<Module> get imports => [CoreModule()];
   
   @override
-  void providers(Locator locator) {
+  Future<void> providers(Locator locator) async {
     locator.registerSingleton<UserService>(
       UserService(locator.get<LoggerService>()),
     );
@@ -112,6 +112,29 @@ locator.registerFactory<UserService>(() => UserService());
 
 // Lazy Singleton (created on first access)
 locator.registerLazySingleton<UserService>(() => UserService());
+```
+
+### Async Providers
+
+Support for services requiring async initialization:
+
+```dart
+class DatabaseModule extends Module {
+  @override
+  Future<void> providers(Locator locator) async {
+    // Async service initialization
+    final prefs = await SharedPreferences.getInstance();
+    locator.registerSingleton<SharedPreferences>(prefs);
+    
+    // Use async-initialized services
+    locator.registerSingleton<ConfigService>(
+      ConfigService(locator.get<SharedPreferences>()),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [SharedPreferences, ConfigService];
+}
 ```
 
 ### Lifecycle Hooks

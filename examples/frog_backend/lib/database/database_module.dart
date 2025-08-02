@@ -70,7 +70,7 @@ class DatabaseModule extends Module {
   List<Type> get exports => [DatabaseService];
 
   @override
-  void providers(Locator locator) {
+  Future<void> providers(Locator locator) async {
     final database = sqlite3.open('app.db');
     _initializeSchema(database);
 
