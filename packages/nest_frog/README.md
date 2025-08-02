@@ -16,7 +16,7 @@ Add `nest_frog` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  nest_frog: ^0.1.1
+  nest_frog: ^0.1.2
   dart_frog: ^1.1.0
 ```
 

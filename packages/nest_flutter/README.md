@@ -18,7 +18,7 @@ Add `nest_flutter` to your `pubspec.yaml`:
 dependencies:
   flutter:
     sdk: flutter
-  nest_flutter: ^0.1.1
+  nest_flutter: ^0.1.2
 ```
 
 ## Quick Start
