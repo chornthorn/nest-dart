@@ -1,6 +1,6 @@
 name: nest_frog
 description: Dart Frog integration for Nest Dart - bringing dependency injection and modular architecture to Dart Frog backend applications.
-version: 0.1.1
+version: 0.1.2
 resolution: workspace
 homepage: https://chornthorn.github.io/nest-dart
 repository: https://github.com/chornthorn/nest-dart
@@ -12,7 +12,7 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
-  nest_core: ^0.1.0
+  nest_core: ^0.1.1
   dart_frog: ^1.1.0
 
 dev_dependencies:

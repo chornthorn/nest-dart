@@ -1,6 +1,6 @@
 name: nest_flutter
 description: Flutter integration for Nest Dart - bringing dependency injection and modular architecture to Flutter applications.
-version: 0.1.1
+version: 0.1.2
 resolution: workspace
 homepage: https://chornthorn.github.io/nest-dart
 repository: https://github.com/chornthorn/nest-dart
