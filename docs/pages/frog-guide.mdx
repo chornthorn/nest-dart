@@ -1,0 +1,1027 @@
+---
+title: Dart Frog Integration
+---
+
+The `nest_frog` package provides seamless integration between Nest Dart's dependency injection system and Dart Frog's middleware architecture. Build scalable, modular REST APIs with clean dependency management.
+
+## Installation
+
+```yaml
+dependencies:
+  nest_core: ^1.0.0
+  nest_frog: ^1.0.0
+  dart_frog: ^1.1.0
+```
+
+## Quick Start
+
+### 1. Create Your Modules
+
+```dart
+// lib/modules/app_module.dart
+import 'package:nest_core/nest_core.dart';
+import 'core_module.dart';
+import 'user_module.dart';
+
+class AppModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule(), UserModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // App-level services
+  }
+}
+```
+
+### 2. Set Up Middleware
+
+```dart
+// routes/_middleware.dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+import 'package:your_app/app_module.dart';
+
+Handler middleware(Handler handler) {
+  return handler.use(
+    provider<String>((context) => 'Welcome to Nest Frog API!'),
+  ).use(
+    nestFrogMiddleware(AppModule()),
+  );
+}
+```
+
+### 3. Use Services in Routes
+
+```dart
+// routes/users/index.dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+import 'package:your_app/services/user_service.dart';
+
+Future<Response> onRequest(RequestContext context) async {
+  final userService = Modular.of(context).get<UserService>();
+  
+  switch (context.request.method) {
+    case HttpMethod.get:
+      return _getUsers(userService);
+    case HttpMethod.post:
+      return await _createUser(context, userService);
+    default:
+      return Response(statusCode: 405);
+  }
+}
+
+Response _getUsers(UserService userService) {
+  final users = userService.getAllUsers();
+  return Response.json(body: {
+    'users': users.map((u) => u.toJson()).toList(),
+    'count': users.length,
+  });
+}
+
+Future<Response> _createUser(RequestContext context, UserService userService) async {
+  final body = await context.request.json() as Map<String, dynamic>;
+  final user = userService.createUser(body['name'], body['email']);
+  
+  return Response.json(
+    statusCode: 201,
+    body: {'user': user.toJson()},
+  );
+}
+```
+
+## Core Components
+
+### Modular Class
+
+The `Modular` class provides the main API for accessing services in Dart Frog:
+
+```dart
+class Modular {
+  // Initialize the container
+  static Future<void> initialize(Module appModule);
+  
+  // Context-based access (recommended for routes)
+  static ModularContext of(RequestContext context);
+  
+  // Direct access
+  static T get<T extends Object>();
+  
+  // Container management
+  static ApplicationContainer get container;
+  static bool get isInitialized;
+  static Future<void> reset();
+}
+```
+
+### ModularContext
+
+Context-aware service resolution:
+
+```dart
+class ModularContext {
+  // Get service from context
+  T get<T extends Object>();
+  
+  // Check if service is available
+  bool has<T extends Object>();
+  
+  // Access underlying request context
+  RequestContext get context;
+}
+```
+
+### nestFrogMiddleware
+
+Middleware factory for easy setup:
+
+```dart
+Middleware nestFrogMiddleware(Module appModule);
+```
+
+## Service Access Patterns
+
+### 1. Context-Based Access (Recommended)
+
+Use `Modular.of(context)` in route handlers:
+
+```dart
+Future<Response> onRequest(RequestContext context) async {
+  final modular = Modular.of(context);
+  final userService = modular.get<UserService>();
+  final logger = modular.get<LoggerService>();
+  
+  logger.log('Processing user request');
+  
+  // Handle request
+  return Response.json(body: {'status': 'ok'});
+}
+```
+
+### 2. Direct Access
+
+Use `Modular.get<T>()` for global services:
+
+```dart
+Future<Response> onRequest(RequestContext context) async {
+  final configService = Modular.get<ConfigService>();
+  final jwtSecret = configService.jwtSecret;
+  
+  // Process with config
+  return Response.json(body: {'version': configService.version});
+}
+```
+
+## Complete Example
+
+Let's build a complete user management API:
+
+### 1. Domain Models
+
+```dart
+// lib/models/user.dart
+class User {
+  final int id;
+  final String name;
+  final String email;
+  final DateTime createdAt;
+  
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.createdAt,
+  });
+  
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User(
+      id: map['id'] as int,
+      name: map['name'] as String,
+      email: map['email'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
+    );
+  }
+  
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+    'created_at': createdAt.toIso8601String(),
+  };
+}
+```
+
+### 2. Core Services
+
+```dart
+// lib/services/config_service.dart
+class ConfigService {
+  final Map<String, dynamic> _config = {
+    'database_url': 'sqlite:app.db',
+    'jwt_secret': 'your-secret-key',
+    'port': 8080,
+    'environment': 'development',
+  };
+  
+  T get<T>(String key) => _config[key] as T;
+  
+  String get databaseUrl => get<String>('database_url');
+  String get jwtSecret => get<String>('jwt_secret');
+  int get port => get<int>('port');
+  String get environment => get<String>('environment');
+}
+
+// lib/services/logger_service.dart
+class LoggerService {
+  void log(String message) {
+    print('[LOG] ${DateTime.now()}: $message');
+  }
+  
+  void error(String message) {
+    print('[ERROR] ${DateTime.now()}: $message');
+  }
+  
+  void warn(String message) {
+    print('[WARN] ${DateTime.now()}: $message');
+  }
+}
+```
+
+### 3. Database Layer
+
+```dart
+// lib/services/database_service.dart
+import 'package:sqlite3/sqlite3.dart';
+
+class DatabaseService {
+  late final Database _db;
+  
+  Future<void> connect(String path) async {
+    _db = sqlite3.open(path);
+    await _initializeSchema();
+  }
+  
+  Future<void> _initializeSchema() async {
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL
+      )
+    ''');
+  }
+  
+  ResultSet query(String sql, [List<Object?> params = const []]) {
+    return _db.select(sql, params);
+  }
+  
+  void execute(String sql, [List<Object?> params = const []]) {
+    _db.execute(sql, params);
+  }
+  
+  int get lastInsertRowId => _db.lastInsertRowId;
+  
+  void close() {
+    _db.dispose();
+  }
+}
+
+// lib/repositories/user_repository.dart
+class UserRepository {
+  final DatabaseService _db;
+  final LoggerService _logger;
+  
+  UserRepository(this._db, this._logger);
+  
+  List<User> findAll() {
+    _logger.log('Finding all users');
+    final results = _db.query('SELECT * FROM users ORDER BY created_at DESC');
+    return results.map((row) => User.fromMap(row)).toList();
+  }
+  
+  User? findById(int id) {
+    _logger.log('Finding user by id: $id');
+    final results = _db.query('SELECT * FROM users WHERE id = ?', [id]);
+    return results.isEmpty ? null : User.fromMap(results.first);
+  }
+  
+  User? findByEmail(String email) {
+    _logger.log('Finding user by email: $email');
+    final results = _db.query('SELECT * FROM users WHERE email = ?', [email]);
+    return results.isEmpty ? null : User.fromMap(results.first);
+  }
+  
+  User create(String name, String email) {
+    _logger.log('Creating user: $name');
+    final now = DateTime.now().toIso8601String();
+    
+    _db.execute(
+      'INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)',
+      [name, email, now],
+    );
+    
+    final id = _db.lastInsertRowId;
+    return User(
+      id: id,
+      name: name,
+      email: email,
+      createdAt: DateTime.parse(now),
+    );
+  }
+  
+  bool update(int id, {String? name, String? email}) {
+    _logger.log('Updating user: $id');
+    final updates = <String>[];
+    final params = <Object?>[];
+    
+    if (name != null) {
+      updates.add('name = ?');
+      params.add(name);
+    }
+    if (email != null) {
+      updates.add('email = ?');
+      params.add(email);
+    }
+    
+    if (updates.isEmpty) return false;
+    
+    params.add(id);
+    _db.execute(
+      'UPDATE users SET ${updates.join(', ')} WHERE id = ?',
+      params,
+    );
+    
+    return true;
+  }
+  
+  bool delete(int id) {
+    _logger.log('Deleting user: $id');
+    _db.execute('DELETE FROM users WHERE id = ?', [id]);
+    return true;
+  }
+}
+```
+
+### 4. Business Logic
+
+```dart
+// lib/services/user_service.dart
+class UserService {
+  final UserRepository _repository;
+  final LoggerService _logger;
+  
+  UserService(this._repository, this._logger);
+  
+  List<User> getAllUsers() {
+    _logger.log('UserService: Getting all users');
+    return _repository.findAll();
+  }
+  
+  User? getUserById(int id) {
+    _logger.log('UserService: Getting user by id: $id');
+    return _repository.findById(id);
+  }
+  
+  User? createUser(String name, String email) {
+    _logger.log('UserService: Creating user: $name');
+    
+    // Check if email already exists
+    final existing = _repository.findByEmail(email);
+    if (existing != null) {
+      throw UserServiceException('Email already exists: $email');
+    }
+    
+    return _repository.create(name, email);
+  }
+  
+  bool updateUser(int id, {String? name, String? email}) {
+    _logger.log('UserService: Updating user: $id');
+    
+    // Check if user exists
+    final user = _repository.findById(id);
+    if (user == null) {
+      throw UserServiceException('User not found: $id');
+    }
+    
+    // Check email uniqueness if changing email
+    if (email != null && email != user.email) {
+      final existing = _repository.findByEmail(email);
+      if (existing != null) {
+        throw UserServiceException('Email already exists: $email');
+      }
+    }
+    
+    return _repository.update(id, name: name, email: email);
+  }
+  
+  bool deleteUser(int id) {
+    _logger.log('UserService: Deleting user: $id');
+    
+    final user = _repository.findById(id);
+    if (user == null) {
+      throw UserServiceException('User not found: $id');
+    }
+    
+    return _repository.delete(id);
+  }
+}
+
+class UserServiceException implements Exception {
+  final String message;
+  
+  UserServiceException(this.message);
+  
+  @override
+  String toString() => 'UserServiceException: $message';
+}
+```
+
+### 5. Module Configuration
+
+```dart
+// lib/modules/core_module.dart
+import 'package:nest_core/nest_core.dart';
+import '../services/config_service.dart';
+import '../services/logger_service.dart';
+
+class CoreModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<ConfigService>(ConfigService());
+    locator.registerSingleton<LoggerService>(LoggerService());
+  }
+  
+  @override
+  List<Type> get exports => [ConfigService, LoggerService];
+}
+
+// lib/modules/database_module.dart
+import 'package:nest_core/nest_core.dart';
+import '../services/database_service.dart';
+import 'core_module.dart';
+
+class DatabaseModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule()];
+  
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<DatabaseService>(DatabaseService());
+  }
+  
+  @override
+  Future<void> onModuleInit(Locator locator, ModuleContext context) async {
+    final config = locator.get<ConfigService>();
+    final db = locator.get<DatabaseService>();
+    await db.connect(config.databaseUrl);
+  }
+  
+  @override
+  Future<void> onModuleDestroy(Locator locator, ModuleContext context) async {
+    final db = locator.get<DatabaseService>();
+    db.close();
+  }
+  
+  @override
+  List<Type> get exports => [DatabaseService];
+}
+
+// lib/modules/user_module.dart
+import 'package:nest_core/nest_core.dart';
+import '../services/user_service.dart';
+import '../repositories/user_repository.dart';
+import 'core_module.dart';
+import 'database_module.dart';
+
+class UserModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule(), DatabaseModule()];
+  
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserRepository>(
+      UserRepository(
+        locator.get<DatabaseService>(),
+        locator.get<LoggerService>(),
+      ),
+    );
+    
+    locator.registerSingleton<UserService>(
+      UserService(
+        locator.get<UserRepository>(),
+        locator.get<LoggerService>(),
+      ),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+```
+
+### 6. Route Handlers
+
+```dart
+// routes/index.dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+
+Response onRequest(RequestContext context) {
+  final config = Modular.get<ConfigService>();
+  final message = context.read<String>();
+  
+  return Response.json(body: {
+    'message': message,
+    'version': '1.0.0',
+    'environment': config.environment,
+    'timestamp': DateTime.now().toIso8601String(),
+  });
+}
+
+// routes/users/index.dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+
+Future<Response> onRequest(RequestContext context) async {
+  final userService = Modular.of(context).get<UserService>();
+  
+  switch (context.request.method) {
+    case HttpMethod.get:
+      return _getUsers(userService);
+    case HttpMethod.post:
+      return await _createUser(context, userService);
+    default:
+      return Response(statusCode: 405);
+  }
+}
+
+Response _getUsers(UserService userService) {
+  try {
+    final users = userService.getAllUsers();
+    return Response.json(body: {
+      'users': users.map((u) => u.toJson()).toList(),
+      'count': users.length,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Failed to fetch users', 'message': e.toString()},
+    );
+  }
+}
+
+Future<Response> _createUser(RequestContext context, UserService userService) async {
+  try {
+    final body = await context.request.json() as Map<String, dynamic>;
+    final name = body['name'] as String?;
+    final email = body['email'] as String?;
+    
+    if (name == null || email == null) {
+      return Response.json(
+        statusCode: 400,
+        body: {'error': 'Missing required fields', 'required': ['name', 'email']},
+      );
+    }
+    
+    final user = userService.createUser(name, email);
+    return Response.json(
+      statusCode: 201,
+      body: {
+        'message': 'User created successfully',
+        'user': user.toJson(),
+      },
+    );
+  } on UserServiceException catch (e) {
+    return Response.json(
+      statusCode: 400,
+      body: {'error': 'User service error', 'message': e.message},
+    );
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Internal server error', 'message': e.toString()},
+    );
+  }
+}
+
+// routes/users/[id].dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+
+Future<Response> onRequest(RequestContext context, String id) async {
+  final userService = Modular.of(context).get<UserService>();
+  final userId = int.tryParse(id);
+  
+  if (userId == null) {
+    return Response.json(
+      statusCode: 400,
+      body: {'error': 'Invalid user ID'},
+    );
+  }
+  
+  switch (context.request.method) {
+    case HttpMethod.get:
+      return _getUser(userService, userId);
+    case HttpMethod.put:
+      return await _updateUser(context, userService, userId);
+    case HttpMethod.delete:
+      return _deleteUser(userService, userId);
+    default:
+      return Response(statusCode: 405);
+  }
+}
+
+Response _getUser(UserService userService, int id) {
+  try {
+    final user = userService.getUserById(id);
+    if (user == null) {
+      return Response.json(
+        statusCode: 404,
+        body: {'error': 'User not found'},
+      );
+    }
+    
+    return Response.json(body: {'user': user.toJson()});
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Failed to fetch user', 'message': e.toString()},
+    );
+  }
+}
+
+Future<Response> _updateUser(RequestContext context, UserService userService, int id) async {
+  try {
+    final body = await context.request.json() as Map<String, dynamic>;
+    final name = body['name'] as String?;
+    final email = body['email'] as String?;
+    
+    final updated = userService.updateUser(id, name: name, email: email);
+    if (!updated) {
+      return Response.json(
+        statusCode: 404,
+        body: {'error': 'User not found'},
+      );
+    }
+    
+    final user = userService.getUserById(id);
+    return Response.json(body: {
+      'message': 'User updated successfully',
+      'user': user!.toJson(),
+    });
+  } on UserServiceException catch (e) {
+    return Response.json(
+      statusCode: 400,
+      body: {'error': 'User service error', 'message': e.message},
+    );
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Internal server error', 'message': e.toString()},
+    );
+  }
+}
+
+Response _deleteUser(UserService userService, int id) {
+  try {
+    final deleted = userService.deleteUser(id);
+    if (!deleted) {
+      return Response.json(
+        statusCode: 404,
+        body: {'error': 'User not found'},
+      );
+    }
+    
+    return Response.json(body: {'message': 'User deleted successfully'});
+  } on UserServiceException catch (e) {
+    return Response.json(
+      statusCode: 400,
+      body: {'error': 'User service error', 'message': e.message},
+    );
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Internal server error', 'message': e.toString()},
+    );
+  }
+}
+```
+
+## Testing
+
+### Unit Testing Services
+
+```dart
+import 'package:test/test.dart';
+import 'package:nest_core/nest_core.dart';
+
+void main() {
+  group('UserService Tests', () {
+    late ApplicationContainer container;
+    late UserService userService;
+    
+    setUp(() async {
+      container = ApplicationContainer();
+      await container.registerModule(TestUserModule());
+      userService = container.get<UserService>();
+    });
+    
+    tearDown(() async {
+      await container.reset();
+    });
+    
+    test('should create user', () {
+      final user = userService.createUser('Test User', 'test@example.com');
+      
+      expect(user.name, equals('Test User'));
+      expect(user.email, equals('test@example.com'));
+      expect(user.id, isPositive);
+    });
+    
+    test('should throw on duplicate email', () {
+      userService.createUser('User 1', 'test@example.com');
+      
+      expect(
+        () => userService.createUser('User 2', 'test@example.com'),
+        throwsA(isA<UserServiceException>()),
+      );
+    });
+  });
+}
+
+class TestUserModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<LoggerService>(MockLoggerService());
+    locator.registerSingleton<DatabaseService>(MockDatabaseService());
+    locator.registerSingleton<UserRepository>(
+      UserRepository(
+        locator.get<DatabaseService>(),
+        locator.get<LoggerService>(),
+      ),
+    );
+    locator.registerSingleton<UserService>(
+      UserService(
+        locator.get<UserRepository>(),
+        locator.get<LoggerService>(),
+      ),
+    );
+  }
+}
+```
+
+### Integration Testing Routes
+
+```dart
+import 'dart:io';
+import 'package:dart_frog/dart_frog.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('User API Tests', () {
+    late HttpServer server;
+    
+    setUpAll(() async {
+      // Start test server
+      server = await serve(createApp(), InternetAddress.loopbackIPv4, 0);
+    });
+    
+    tearDownAll(() async {
+      await server.close();
+    });
+    
+    test('GET /users returns empty array initially', () async {
+      final response = await HttpClient()
+          .getUrl(Uri.parse('http://localhost:${server.port}/users'))
+          .then((request) => request.close());
+      
+      expect(response.statusCode, equals(200));
+      
+      final body = await response.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      
+      expect(json['users'], isEmpty);
+      expect(json['count'], equals(0));
+    });
+    
+    test('POST /users creates new user', () async {
+      final request = await HttpClient()
+          .postUrl(Uri.parse('http://localhost:${server.port}/users'));
+      
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode({
+        'name': 'Test User',
+        'email': 'test@example.com',
+      }));
+      
+      final response = await request.close();
+      expect(response.statusCode, equals(201));
+      
+      final body = await response.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      
+      expect(json['user']['name'], equals('Test User'));
+      expect(json['user']['email'], equals('test@example.com'));
+    });
+  });
+}
+```
+
+## Best Practices
+
+### 1. Error Handling
+
+Create consistent error responses:
+
+```dart
+class ApiResponse {
+  static Response success(Map<String, dynamic> data, {int statusCode = 200}) {
+    return Response.json(
+      statusCode: statusCode,
+      body: {
+        'success': true,
+        'data': data,
+        'timestamp': DateTime.now().toIso8601String(),
+      },
+    );
+  }
+  
+  static Response error(String message, {int statusCode = 400, String? code}) {
+    return Response.json(
+      statusCode: statusCode,
+      body: {
+        'success': false,
+        'error': {
+          'code': code ?? 'GENERIC_ERROR',
+          'message': message,
+        },
+        'timestamp': DateTime.now().toIso8601String(),
+      },
+    );
+  }
+}
+
+// Usage in routes
+Response _getUsers(UserService userService) {
+  try {
+    final users = userService.getAllUsers();
+    return ApiResponse.success({
+      'users': users.map((u) => u.toJson()).toList(),
+      'count': users.length,
+    });
+  } on UserServiceException catch (e) {
+    return ApiResponse.error(e.message, statusCode: 400, code: 'USER_ERROR');
+  } catch (e) {
+    return ApiResponse.error('Internal server error', statusCode: 500);
+  }
+}
+```
+
+### 2. Request Validation
+
+Create validation middleware:
+
+```dart
+// lib/middleware/validation_middleware.dart
+Middleware validationMiddleware<T>(T Function(Map<String, dynamic>) validator) {
+  return (handler) {
+    return (context) async {
+      if (context.request.method == HttpMethod.post || 
+          context.request.method == HttpMethod.put) {
+        try {
+          final body = await context.request.json() as Map<String, dynamic>;
+          final validated = validator(body);
+          return handler(context.provide<T>(() => validated));
+        } catch (e) {
+          return Response.json(
+            statusCode: 400,
+            body: {'error': 'Validation failed', 'message': e.toString()},
+          );
+        }
+      }
+      return handler(context);
+    };
+  };
+}
+
+// Usage
+Handler middleware(Handler handler) {
+  return handler.use(
+    validationMiddleware<CreateUserRequest>((body) {
+      final name = body['name'] as String?;
+      final email = body['email'] as String?;
+      
+      if (name == null || name.isEmpty) {
+        throw ValidationException('Name is required');
+      }
+      if (email == null || !email.contains('@')) {
+        throw ValidationException('Valid email is required');
+      }
+      
+      return CreateUserRequest(name: name, email: email);
+    }),
+  );
+}
+```
+
+### 3. Authentication & Authorization
+
+```dart
+// lib/services/auth_service.dart
+class AuthService {
+  final ConfigService _config;
+  
+  AuthService(this._config);
+  
+  String? validateToken(String token) {
+    // JWT validation logic
+    try {
+      final jwt = JWT.verify(token, SecretKey(_config.jwtSecret));
+      return jwt.payload['user_id'] as String?;
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  String generateToken(String userId) {
+    final jwt = JWT({
+      'user_id': userId,
+      'exp': DateTime.now().add(Duration(hours: 24)).millisecondsSinceEpoch,
+    });
+    return jwt.sign(SecretKey(_config.jwtSecret));
+  }
+}
+
+// Authentication middleware
+Middleware authMiddleware() {
+  return (handler) {
+    return (context) {
+      final authHeader = context.request.headers['authorization'];
+      if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+        return Response.json(
+          statusCode: 401,
+          body: {'error': 'Authentication required'},
+        );
+      }
+      
+      final token = authHeader.substring(7);
+      final authService = Modular.get<AuthService>();
+      final userId = authService.validateToken(token);
+      
+      if (userId == null) {
+        return Response.json(
+          statusCode: 401,
+          body: {'error': 'Invalid token'},
+        );
+      }
+      
+      return handler(context.provide<String>(() => userId));
+    };
+  };
+}
+```
+
+### 4. Logging & Monitoring
+
+```dart
+// Enhanced logging middleware
+Middleware loggingMiddleware() {
+  return (handler) {
+    return (context) async {
+      final logger = Modular.get<LoggerService>();
+      final stopwatch = Stopwatch()..start();
+      
+      logger.log('${context.request.method} ${context.request.uri}');
+      
+      try {
+        final response = await handler(context);
+        stopwatch.stop();
+        
+        logger.log(
+          '${context.request.method} ${context.request.uri} - '
+          '${response.statusCode} (${stopwatch.elapsedMilliseconds}ms)',
+        );
+        
+        return response;
+      } catch (e) {
+        stopwatch.stop();
+        logger.error(
+          '${context.request.method} ${context.request.uri} - '
+          'ERROR: $e (${stopwatch.elapsedMilliseconds}ms)',
+        );
+        rethrow;
+      }
+    };
+  };
+}
+```
+
+## Next Steps
+
+- Learn about [Flutter integration](/flutter-guide) for full-stack apps
+- Explore [testing patterns](/testing-guide) for backend services
+- Check out [API reference](/api-reference) for complete documentation
+- View [examples](/examples) for more complex scenarios

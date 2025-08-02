@@ -1,0 +1,1369 @@
+---
+title: Examples and Tutorials
+---
+
+# Examples and Tutorials
+
+Real-world examples and step-by-step tutorials for building applications with Nest Dart.
+
+## Quick Examples
+
+### Basic Service Registration
+
+```dart
+// Simple service
+class GreetingService {
+  String greet(String name) => 'Hello, $name!';
+}
+
+// Module
+class GreetingModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<GreetingService>(GreetingService());
+  }
+  
+  @override
+  List<Type> get exports => [GreetingService];
+}
+
+// Usage
+void main() async {
+  final container = ApplicationContainer();
+  await container.registerModule(GreetingModule());
+  
+  final greeting = container.get<GreetingService>();
+  print(greeting.greet('World')); // Hello, World!
+}
+```
+
+### Service Dependencies
+
+```dart
+class LoggerService {
+  void log(String message) => print('[LOG] $message');
+}
+
+class UserService {
+  final LoggerService _logger;
+  
+  UserService(this._logger);
+  
+  void createUser(String name) {
+    _logger.log('Creating user: $name');
+    // Create user logic
+  }
+}
+
+class AppModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<LoggerService>(LoggerService());
+    locator.registerSingleton<UserService>(
+      UserService(locator.get<LoggerService>()),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+```
+
+## Complete Applications
+
+### 1. Flutter Todo App
+
+A complete Flutter todo application with modular architecture.
+
+#### Project Structure
+```
+lib/
+├── main.dart
+├── app_module.dart
+├── models/
+│   └── todo.dart
+├── services/
+│   ├── todo_service.dart
+│   └── storage_service.dart
+├── modules/
+│   ├── core_module.dart
+│   └── todo_module.dart
+└── pages/
+    ├── home_page.dart
+    └── todo_form_page.dart
+```
+
+#### Models
+```dart
+// lib/models/todo.dart
+class Todo {
+  final String id;
+  final String title;
+  final String description;
+  final bool completed;
+  final DateTime createdAt;
+  
+  const Todo({
+    required this.id,
+    required this.title,
+    required this.description,
+    this.completed = false,
+    required this.createdAt,
+  });
+  
+  Todo copyWith({
+    String? title,
+    String? description,
+    bool? completed,
+  }) {
+    return Todo(
+      id: id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      completed: completed ?? this.completed,
+      createdAt: createdAt,
+    );
+  }
+  
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'description': description,
+    'completed': completed,
+    'createdAt': createdAt.toIso8601String(),
+  };
+  
+  factory Todo.fromJson(Map<String, dynamic> json) => Todo(
+    id: json['id'],
+    title: json['title'],
+    description: json['description'],
+    completed: json['completed'],
+    createdAt: DateTime.parse(json['createdAt']),
+  );
+}
+```
+
+#### Services
+```dart
+// lib/services/storage_service.dart
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class StorageService {
+  static const String _todosKey = 'todos';
+  
+  Future<List<Map<String, dynamic>>> getTodos() async {
+    final prefs = await SharedPreferences.getInstance();
+    final todosJson = prefs.getString(_todosKey);
+    if (todosJson == null) return [];
+    
+    final List<dynamic> todosList = jsonDecode(todosJson);
+    return todosList.cast<Map<String, dynamic>>();
+  }
+  
+  Future<void> saveTodos(List<Map<String, dynamic>> todos) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_todosKey, jsonEncode(todos));
+  }
+}
+
+// lib/services/todo_service.dart
+import 'package:flutter/foundation.dart';
+import '../models/todo.dart';
+import 'storage_service.dart';
+
+class TodoService extends ChangeNotifier {
+  final StorageService _storage;
+  List<Todo> _todos = [];
+  
+  TodoService(this._storage) {
+    _loadTodos();
+  }
+  
+  List<Todo> get todos => List.unmodifiable(_todos);
+  List<Todo> get completedTodos => _todos.where((t) => t.completed).toList();
+  List<Todo> get pendingTodos => _todos.where((t) => !t.completed).toList();
+  
+  Future<void> _loadTodos() async {
+    final todosData = await _storage.getTodos();
+    _todos = todosData.map((data) => Todo.fromJson(data)).toList();
+    notifyListeners();
+  }
+  
+  Future<void> _saveTodos() async {
+    final todosData = _todos.map((todo) => todo.toJson()).toList();
+    await _storage.saveTodos(todosData);
+  }
+  
+  Future<Todo> addTodo(String title, String description) async {
+    final todo = Todo(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+    );
+    
+    _todos.add(todo);
+    await _saveTodos();
+    notifyListeners();
+    return todo;
+  }
+  
+  Future<void> updateTodo(String id, {String? title, String? description, bool? completed}) async {
+    final index = _todos.indexWhere((t) => t.id == id);
+    if (index == -1) return;
+    
+    _todos[index] = _todos[index].copyWith(
+      title: title,
+      description: description,
+      completed: completed,
+    );
+    
+    await _saveTodos();
+    notifyListeners();
+  }
+  
+  Future<void> deleteTodo(String id) async {
+    _todos.removeWhere((t) => t.id == id);
+    await _saveTodos();
+    notifyListeners();
+  }
+  
+  Future<void> toggleTodo(String id) async {
+    final index = _todos.indexWhere((t) => t.id == id);
+    if (index == -1) return;
+    
+    _todos[index] = _todos[index].copyWith(completed: !_todos[index].completed);
+    await _saveTodos();
+    notifyListeners();
+  }
+}
+```
+
+#### Modules
+```dart
+// lib/modules/core_module.dart
+import 'package:nest_core/nest_core.dart';
+import '../services/storage_service.dart';
+
+class CoreModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<StorageService>(StorageService());
+  }
+  
+  @override
+  List<Type> get exports => [StorageService];
+}
+
+// lib/modules/todo_module.dart
+import 'package:nest_core/nest_core.dart';
+import '../services/todo_service.dart';
+import 'core_module.dart';
+
+class TodoModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule()];
+  
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<TodoService>(
+      TodoService(locator.get<StorageService>()),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [TodoService];
+}
+
+// lib/app_module.dart
+import 'package:nest_core/nest_core.dart';
+import 'modules/core_module.dart';
+import 'modules/todo_module.dart';
+
+class AppModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule(), TodoModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // App-level services
+  }
+}
+```
+
+#### UI
+```dart
+// lib/pages/home_page.dart
+import 'package:flutter/material.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+import '../services/todo_service.dart';
+import '../models/todo.dart';
+import 'todo_form_page.dart';
+
+class HomePage extends StatefulWidget {
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late final TodoService _todoService;
+  
+  @override
+  void initState() {
+    super.initState();
+    _todoService = Modular.get<TodoService>();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Todo App'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.info),
+            onPressed: () => _showStats(context),
+          ),
+        ],
+      ),
+      body: ListenableBuilder(
+        listenable: _todoService,
+        builder: (context, child) {
+          final todos = _todoService.todos;
+          
+          if (todos.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle_outline, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('No todos yet!', style: Theme.of(context).textTheme.headlineSmall),
+                  Text('Tap the + button to add your first todo'),
+                ],
+              ),
+            );
+          }
+          
+          return ListView.builder(
+            itemCount: todos.length,
+            itemBuilder: (context, index) {
+              final todo = todos[index];
+              return TodoTile(
+                todo: todo,
+                onToggle: () => _todoService.toggleTodo(todo.id),
+                onDelete: () => _todoService.deleteTodo(todo.id),
+                onEdit: () => _editTodo(todo),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _addTodo(),
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+  
+  void _addTodo() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => TodoFormPage()),
+    );
+  }
+  
+  void _editTodo(Todo todo) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TodoFormPage(todo: todo),
+      ),
+    );
+  }
+  
+  void _showStats(BuildContext context) {
+    final total = _todoService.todos.length;
+    final completed = _todoService.completedTodos.length;
+    final pending = _todoService.pendingTodos.length;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Todo Stats'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Total: $total'),
+            Text('Completed: $completed'),
+            Text('Pending: $pending'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TodoTile extends StatelessWidget {
+  final Todo todo;
+  final VoidCallback onToggle;
+  final VoidCallback onDelete;
+  final VoidCallback onEdit;
+  
+  const TodoTile({
+    required this.todo,
+    required this.onToggle,
+    required this.onDelete,
+    required this.onEdit,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ListTile(
+        leading: Checkbox(
+          value: todo.completed,
+          onChanged: (_) => onToggle(),
+        ),
+        title: Text(
+          todo.title,
+          style: TextStyle(
+            decoration: todo.completed ? TextDecoration.lineThrough : null,
+          ),
+        ),
+        subtitle: todo.description.isNotEmpty ? Text(todo.description) : null,
+        trailing: PopupMenuButton(
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit),
+                  SizedBox(width: 8),
+                  Text('Edit'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Delete', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+          ],
+          onSelected: (value) {
+            switch (value) {
+              case 'edit':
+                onEdit();
+                break;
+              case 'delete':
+                onDelete();
+                break;
+            }
+          },
+        ),
+        onTap: onToggle,
+      ),
+    );
+  }
+}
+
+// lib/pages/todo_form_page.dart
+import 'package:flutter/material.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+import '../services/todo_service.dart';
+import '../models/todo.dart';
+
+class TodoFormPage extends StatefulWidget {
+  final Todo? todo;
+  
+  const TodoFormPage({this.todo});
+  
+  @override
+  State<TodoFormPage> createState() => _TodoFormPageState();
+}
+
+class _TodoFormPageState extends State<TodoFormPage> {
+  late final TodoService _todoService;
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+  final _formKey = GlobalKey<FormState>();
+  
+  bool get isEditing => widget.todo != null;
+  
+  @override
+  void initState() {
+    super.initState();
+    _todoService = Modular.get<TodoService>();
+    _titleController = TextEditingController(text: widget.todo?.title ?? '');
+    _descriptionController = TextEditingController(text: widget.todo?.description ?? '');
+  }
+  
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isEditing ? 'Edit Todo' : 'Add Todo'),
+        actions: [
+          TextButton(
+            onPressed: _saveTodo,
+            child: Text('SAVE'),
+          ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Title is required';
+                  }
+                  return null;
+                },
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saveTodo,
+                  child: Text(isEditing ? 'Update Todo' : 'Add Todo'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _saveTodo() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    
+    try {
+      if (isEditing) {
+        await _todoService.updateTodo(
+          widget.todo!.id,
+          title: title,
+          description: description,
+        );
+      } else {
+        await _todoService.addTodo(title, description);
+      }
+      
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+}
+
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+import 'app_module.dart';
+import 'pages/home_page.dart';
+
+void main() {
+  runApp(
+    ModularApp(
+      module: AppModule(),
+      child: MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Todo App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      home: HomePage(),
+    );
+  }
+}
+```
+
+### 2. Dart Frog REST API
+
+A complete REST API for a blog platform with authentication.
+
+#### Project Structure
+```
+lib/
+├── app_module.dart
+├── models/
+│   ├── user.dart
+│   └── post.dart
+├── services/
+│   ├── auth_service.dart
+│   ├── user_service.dart
+│   └── post_service.dart
+├── repositories/
+│   ├── user_repository.dart
+│   └── post_repository.dart
+└── modules/
+    ├── core_module.dart
+    ├── auth_module.dart
+    ├── user_module.dart
+    └── post_module.dart
+
+routes/
+├── _middleware.dart
+├── index.dart
+├── auth/
+│   ├── login.dart
+│   └── register.dart
+├── users/
+│   ├── index.dart
+│   └── [id].dart
+└── posts/
+    ├── index.dart
+    ├── [id].dart
+    └── [id]/
+        └── comments.dart
+```
+
+#### Models
+```dart
+// lib/models/user.dart
+class User {
+  final int id;
+  final String username;
+  final String email;
+  final String passwordHash;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  
+  const User({
+    required this.id,
+    required this.username,
+    required this.email,
+    required this.passwordHash,
+    required this.createdAt,
+    this.updatedAt,
+  });
+  
+  factory User.fromMap(Map<String, dynamic> map) => User(
+    id: map['id'] as int,
+    username: map['username'] as String,
+    email: map['email'] as String,
+    passwordHash: map['password_hash'] as String,
+    createdAt: DateTime.parse(map['created_at'] as String),
+    updatedAt: map['updated_at'] != null 
+        ? DateTime.parse(map['updated_at'] as String) 
+        : null,
+  );
+  
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'username': username,
+    'email': email,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': updatedAt?.toIso8601String(),
+  };
+}
+
+// lib/models/post.dart
+class Post {
+  final int id;
+  final String title;
+  final String content;
+  final int authorId;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  
+  const Post({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.authorId,
+    required this.createdAt,
+    this.updatedAt,
+  });
+  
+  factory Post.fromMap(Map<String, dynamic> map) => Post(
+    id: map['id'] as int,
+    title: map['title'] as String,
+    content: map['content'] as String,
+    authorId: map['author_id'] as int,
+    createdAt: DateTime.parse(map['created_at'] as String),
+    updatedAt: map['updated_at'] != null 
+        ? DateTime.parse(map['updated_at'] as String) 
+        : null,
+  );
+  
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'content': content,
+    'author_id': authorId,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': updatedAt?.toIso8601String(),
+  };
+}
+```
+
+#### Authentication Service
+```dart
+// lib/services/auth_service.dart
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
+import '../models/user.dart';
+import '../repositories/user_repository.dart';
+
+class AuthService {
+  final UserRepository _userRepository;
+  final String _jwtSecret;
+  
+  AuthService(this._userRepository, this._jwtSecret);
+  
+  String _hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+  
+  Future<User?> register(String username, String email, String password) async {
+    // Check if user already exists
+    final existingUser = await _userRepository.findByEmail(email);
+    if (existingUser != null) {
+      throw AuthException('Email already registered');
+    }
+    
+    final existingUsername = await _userRepository.findByUsername(username);
+    if (existingUsername != null) {
+      throw AuthException('Username already taken');
+    }
+    
+    // Create new user
+    final passwordHash = _hashPassword(password);
+    return await _userRepository.create(username, email, passwordHash);
+  }
+  
+  Future<String?> login(String email, String password) async {
+    final user = await _userRepository.findByEmail(email);
+    if (user == null) {
+      throw AuthException('Invalid credentials');
+    }
+    
+    final passwordHash = _hashPassword(password);
+    if (user.passwordHash != passwordHash) {
+      throw AuthException('Invalid credentials');
+    }
+    
+    // Generate JWT token
+    final jwt = JWT({
+      'user_id': user.id,
+      'username': user.username,
+      'email': user.email,
+      'exp': DateTime.now().add(Duration(days: 7)).millisecondsSinceEpoch ~/ 1000,
+    });
+    
+    return jwt.sign(SecretKey(_jwtSecret));
+  }
+  
+  User? validateToken(String token) {
+    try {
+      final jwt = JWT.verify(token, SecretKey(_jwtSecret));
+      final payload = jwt.payload as Map<String, dynamic>;
+      
+      // Check expiration
+      final exp = payload['exp'] as int;
+      if (DateTime.now().millisecondsSinceEpoch ~/ 1000 > exp) {
+        return null;
+      }
+      
+      return User(
+        id: payload['user_id'] as int,
+        username: payload['username'] as String,
+        email: payload['email'] as String,
+        passwordHash: '', // Don't include password hash in token
+        createdAt: DateTime.now(), // Placeholder
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
+class AuthException implements Exception {
+  final String message;
+  AuthException(this.message);
+  @override
+  String toString() => 'AuthException: $message';
+}
+```
+
+#### Middleware
+```dart
+// routes/_middleware.dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+import 'package:your_app/app_module.dart';
+import 'package:your_app/services/auth_service.dart';
+
+Handler middleware(Handler handler) {
+  return handler
+      .use(loggingMiddleware())
+      .use(corsMiddleware())
+      .use(nestFrogMiddleware(AppModule()));
+}
+
+Middleware loggingMiddleware() {
+  return (handler) {
+    return (context) async {
+      final stopwatch = Stopwatch()..start();
+      print('${context.request.method} ${context.request.uri}');
+      
+      try {
+        final response = await handler(context);
+        stopwatch.stop();
+        print('${context.request.method} ${context.request.uri} - ${response.statusCode} (${stopwatch.elapsedMilliseconds}ms)');
+        return response;
+      } catch (e) {
+        stopwatch.stop();
+        print('${context.request.method} ${context.request.uri} - ERROR: $e (${stopwatch.elapsedMilliseconds}ms)');
+        rethrow;
+      }
+    };
+  };
+}
+
+Middleware corsMiddleware() {
+  return (handler) {
+    return (context) async {
+      final response = await handler(context);
+      return response.copyWith(
+        headers: {
+          ...response.headers,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      );
+    };
+  };
+}
+
+Middleware authMiddleware() {
+  return (handler) {
+    return (context) async {
+      final authHeader = context.request.headers['authorization'];
+      if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+        return Response.json(
+          statusCode: 401,
+          body: {'error': 'Authentication required'},
+        );
+      }
+      
+      final token = authHeader.substring(7);
+      final authService = Modular.get<AuthService>();
+      final user = authService.validateToken(token);
+      
+      if (user == null) {
+        return Response.json(
+          statusCode: 401,
+          body: {'error': 'Invalid or expired token'},
+        );
+      }
+      
+      return handler(context.provide<User>(() => user));
+    };
+  };
+}
+```
+
+#### Routes
+```dart
+// routes/auth/login.dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+
+Future<Response> onRequest(RequestContext context) async {
+  if (context.request.method != HttpMethod.post) {
+    return Response(statusCode: 405);
+  }
+  
+  try {
+    final body = await context.request.json() as Map<String, dynamic>;
+    final email = body['email'] as String?;
+    final password = body['password'] as String?;
+    
+    if (email == null || password == null) {
+      return Response.json(
+        statusCode: 400,
+        body: {'error': 'Email and password are required'},
+      );
+    }
+    
+    final authService = Modular.of(context).get<AuthService>();
+    final token = await authService.login(email, password);
+    
+    return Response.json(body: {
+      'message': 'Login successful',
+      'token': token,
+    });
+  } on AuthException catch (e) {
+    return Response.json(
+      statusCode: 400,
+      body: {'error': e.message},
+    );
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Internal server error'},
+    );
+  }
+}
+
+// routes/posts/index.dart
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nest_frog/nest_frog.dart';
+
+Handler middleware(Handler handler) {
+  return handler.use(authMiddleware());
+}
+
+Future<Response> onRequest(RequestContext context) async {
+  final postService = Modular.of(context).get<PostService>();
+  
+  switch (context.request.method) {
+    case HttpMethod.get:
+      return _getPosts(postService);
+    case HttpMethod.post:
+      return await _createPost(context, postService);
+    default:
+      return Response(statusCode: 405);
+  }
+}
+
+Response _getPosts(PostService postService) {
+  try {
+    final posts = postService.getAllPosts();
+    return Response.json(body: {
+      'posts': posts.map((p) => p.toJson()).toList(),
+      'count': posts.length,
+    });
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Failed to fetch posts'},
+    );
+  }
+}
+
+Future<Response> _createPost(RequestContext context, PostService postService) async {
+  try {
+    final user = context.read<User>();
+    final body = await context.request.json() as Map<String, dynamic>;
+    final title = body['title'] as String?;
+    final content = body['content'] as String?;
+    
+    if (title == null || content == null) {
+      return Response.json(
+        statusCode: 400,
+        body: {'error': 'Title and content are required'},
+      );
+    }
+    
+    final post = await postService.createPost(title, content, user.id);
+    return Response.json(
+      statusCode: 201,
+      body: {
+        'message': 'Post created successfully',
+        'post': post.toJson(),
+      },
+    );
+  } catch (e) {
+    return Response.json(
+      statusCode: 500,
+      body: {'error': 'Failed to create post'},
+    );
+  }
+}
+```
+
+## Testing Examples
+
+### Unit Testing with Mocks
+
+```dart
+import 'package:test/test.dart';
+import 'package:nest_core/nest_core.dart';
+
+void main() {
+  group('UserService Tests', () {
+    late ApplicationContainer container;
+    late UserService userService;
+    late MockUserRepository mockRepository;
+    
+    setUp(() async {
+      mockRepository = MockUserRepository();
+      container = ApplicationContainer();
+      await container.registerModule(TestUserModule(mockRepository));
+      userService = container.get<UserService>();
+    });
+    
+    tearDown(() async {
+      await container.reset();
+    });
+    
+    test('should create user successfully', () async {
+      // Arrange
+      final user = User(id: 1, name: 'Test', email: 'test@example.com');
+      mockRepository.when(#create).thenReturn(user);
+      
+      // Act
+      final result = await userService.createUser('Test', 'test@example.com');
+      
+      // Assert
+      expect(result, equals(user));
+      expect(mockRepository.createCallCount, equals(1));
+    });
+    
+    test('should throw when email already exists', () async {
+      // Arrange
+      mockRepository.when(#findByEmail).thenReturn(existingUser);
+      
+      // Act & Assert
+      expect(
+        () => userService.createUser('Test', 'existing@example.com'),
+        throwsA(isA<UserServiceException>()),
+      );
+    });
+  });
+}
+
+class TestUserModule extends Module {
+  final MockUserRepository mockRepository;
+  
+  TestUserModule(this.mockRepository);
+  
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<LoggerService>(MockLoggerService());
+    locator.registerSingleton<UserRepository>(mockRepository);
+    locator.registerSingleton<UserService>(
+      UserService(mockRepository, locator.get<LoggerService>()),
+    );
+  }
+}
+
+class MockUserRepository implements UserRepository {
+  int createCallCount = 0;
+  final Map<Symbol, dynamic> _responses = {};
+  
+  void when(Symbol method) => MockMethodCall(this, method);
+  
+  @override
+  Future<User> create(String name, String email) async {
+    createCallCount++;
+    return _responses[#create] ?? throw Exception('No mock response set');
+  }
+  
+  @override
+  Future<User?> findByEmail(String email) async {
+    return _responses[#findByEmail];
+  }
+}
+
+class MockMethodCall {
+  final MockUserRepository mock;
+  final Symbol method;
+  
+  MockMethodCall(this.mock, this.method);
+  
+  void thenReturn(dynamic value) {
+    mock._responses[method] = value;
+  }
+}
+```
+
+### Integration Testing
+
+```dart
+import 'dart:io';
+import 'package:test/test.dart';
+import 'package:dart_frog/dart_frog.dart';
+
+void main() {
+  group('Blog API Integration Tests', () {
+    late HttpServer server;
+    late String authToken;
+    
+    setUpAll(() async {
+      server = await serve(createApp(), InternetAddress.loopbackIPv4, 0);
+      authToken = await _getAuthToken();
+    });
+    
+    tearDownAll(() async {
+      await server.close();
+    });
+    
+    test('full blog workflow', () async {
+      // 1. Create a post
+      final createResponse = await _createPost('Test Post', 'Test content');
+      expect(createResponse.statusCode, equals(201));
+      
+      final createBody = jsonDecode(await createResponse.stream.bytesToString());
+      final postId = createBody['post']['id'];
+      
+      // 2. Get all posts
+      final getResponse = await _getPosts();
+      expect(getResponse.statusCode, equals(200));
+      
+      final getBody = jsonDecode(await getResponse.stream.bytesToString());
+      expect(getBody['posts'], hasLength(greaterThan(0)));
+      
+      // 3. Get specific post
+      final getPostResponse = await _getPost(postId);
+      expect(getPostResponse.statusCode, equals(200));
+      
+      // 4. Update post
+      final updateResponse = await _updatePost(postId, 'Updated Title');
+      expect(updateResponse.statusCode, equals(200));
+      
+      // 5. Delete post
+      final deleteResponse = await _deletePost(postId);
+      expect(deleteResponse.statusCode, equals(200));
+    });
+  });
+}
+
+Future<String> _getAuthToken() async {
+  // Login and get token
+  final response = await HttpClient()
+      .postUrl(Uri.parse('http://localhost:${server.port}/auth/login'));
+  
+  response.headers.contentType = ContentType.json;
+  response.write(jsonEncode({
+    'email': 'test@example.com',
+    'password': 'password123',
+  }));
+  
+  final loginResponse = await response.close();
+  final body = jsonDecode(await loginResponse.stream.bytesToString());
+  return body['token'];
+}
+
+Future<HttpClientResponse> _createPost(String title, String content) async {
+  final request = await HttpClient()
+      .postUrl(Uri.parse('http://localhost:${server.port}/posts'));
+  
+  request.headers.contentType = ContentType.json;
+  request.headers.add('Authorization', 'Bearer $authToken');
+  request.write(jsonEncode({'title': title, 'content': content}));
+  
+  return await request.close();
+}
+```
+
+## Advanced Patterns
+
+### Factory Pattern with DI
+
+```dart
+abstract class DatabaseConnection {
+  Future<void> connect();
+  Future<void> disconnect();
+}
+
+class PostgreSQLConnection implements DatabaseConnection {
+  final String connectionString;
+  PostgreSQLConnection(this.connectionString);
+  
+  @override
+  Future<void> connect() async {
+    // PostgreSQL connection logic
+  }
+  
+  @override
+  Future<void> disconnect() async {
+    // Disconnect logic
+  }
+}
+
+class SQLiteConnection implements DatabaseConnection {
+  final String filePath;
+  SQLiteConnection(this.filePath);
+  
+  @override
+  Future<void> connect() async {
+    // SQLite connection logic
+  }
+  
+  @override
+  Future<void> disconnect() async {
+    // Disconnect logic
+  }
+}
+
+class DatabaseConnectionFactory {
+  final ConfigService _config;
+  
+  DatabaseConnectionFactory(this._config);
+  
+  DatabaseConnection create() {
+    final dbType = _config.get<String>('database_type');
+    
+    switch (dbType) {
+      case 'postgresql':
+        return PostgreSQLConnection(_config.get<String>('postgresql_url'));
+      case 'sqlite':
+        return SQLiteConnection(_config.get<String>('sqlite_path'));
+      default:
+        throw Exception('Unsupported database type: $dbType');
+    }
+  }
+}
+
+class DatabaseModule extends Module {
+  @override
+  List<Module> get imports => [ConfigModule()];
+  
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<DatabaseConnectionFactory>(
+      DatabaseConnectionFactory(locator.get<ConfigService>()),
+    );
+    
+    locator.registerLazySingleton<DatabaseConnection>(
+      () => locator.get<DatabaseConnectionFactory>().create(),
+      dispose: (connection) => connection.disconnect(),
+    );
+  }
+  
+  @override
+  Future<void> onModuleInit(Locator locator, ModuleContext context) async {
+    final connection = locator.get<DatabaseConnection>();
+    await connection.connect();
+  }
+  
+  @override
+  List<Type> get exports => [DatabaseConnection];
+}
+```
+
+### Decorator Pattern
+
+```dart
+abstract class CacheService {
+  Future<T?> get<T>(String key);
+  Future<void> set<T>(String key, T value, {Duration? ttl});
+  Future<void> delete(String key);
+}
+
+class RedisCacheService implements CacheService {
+  @override
+  Future<T?> get<T>(String key) async {
+    // Redis implementation
+  }
+  
+  @override
+  Future<void> set<T>(String key, T value, {Duration? ttl}) async {
+    // Redis implementation
+  }
+  
+  @override
+  Future<void> delete(String key) async {
+    // Redis implementation
+  }
+}
+
+class LoggingCacheDecorator implements CacheService {
+  final CacheService _cache;
+  final LoggerService _logger;
+  
+  LoggingCacheDecorator(this._cache, this._logger);
+  
+  @override
+  Future<T?> get<T>(String key) async {
+    _logger.log('Cache GET: $key');
+    final result = await _cache.get<T>(key);
+    _logger.log('Cache GET: $key - ${result != null ? 'HIT' : 'MISS'}');
+    return result;
+  }
+  
+  @override
+  Future<void> set<T>(String key, T value, {Duration? ttl}) async {
+    _logger.log('Cache SET: $key');
+    await _cache.set<T>(key, value, ttl: ttl);
+  }
+  
+  @override
+  Future<void> delete(String key) async {
+    _logger.log('Cache DELETE: $key');
+    await _cache.delete(key);
+  }
+}
+
+class CacheModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // Register base cache service
+    locator.registerSingleton<RedisCacheService>(RedisCacheService());
+    
+    // Register decorated cache service
+    locator.registerSingleton<CacheService>(
+      LoggingCacheDecorator(
+        locator.get<RedisCacheService>(),
+        locator.get<LoggerService>(),
+      ),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [CacheService];
+}
+```
+
+These examples demonstrate real-world usage patterns and best practices for building scalable applications with Nest Dart. Each example includes complete, working code that you can adapt for your own projects.

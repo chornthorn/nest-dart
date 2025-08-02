@@ -1,17 +1,160 @@
 ---
-title: Welcome to Zudoku
+title: Introduction
 ---
 
-Thanks for choosing to use Zudoku to power your API documentation!
+A **NestJS-inspired dependency injection framework** for Dart, bringing modular architecture and type-safe service management to Dart applications across all platforms.
 
-## Edit this page
+## What is Nest Dart?
 
-To edit this page, open the `pages/introduction.mdx` file.
+Nest Dart is a powerful dependency injection framework that brings the proven architectural patterns from NestJS to the Dart ecosystem. It provides a modular, scalable, and maintainable way to organize your Dart applications with strict encapsulation and type-safe service resolution.
 
-## Configuration
+## Key Features
 
-You can find the full configuration for your Zudoku site in the
-`zudoku.config.tsx` file.
+- 🏗️ **Modular Architecture** - Organize code into reusable, self-contained modules
+- 💉 **Dependency Injection** - Type-safe service resolution powered by GetIt
+- 🔒 **Access Control** - Services are private by default, must be explicitly exported
+- 🔄 **Lifecycle Management** - Module initialization and cleanup hooks
+- 🧪 **Testing Support** - Easy mocking and isolated testing
+- 🔧 **Multi-Platform** - Works with Flutter, Dart Frog, and pure Dart applications
+- ⚡ **Performance** - Minimal overhead with compile-time safety
+- 📦 **Workspace Support** - Melos-based monorepo structure
 
-For further information on how to customize your site, check out the
-[Zudoku documentation](https://zudoku.dev/docs).
+## Architecture Overview
+
+Nest Dart follows a hierarchical module system where:
+
+```
+ApplicationContainer
+├── AppModule (Root)
+    ├── CoreModule
+    │   ├── ConfigService
+    │   ├── LoggerService
+    │   └── DatabaseService
+    ├── UserModule
+    │   ├── UserService
+    │   └── UserRepository
+    └── AuthModule
+        ├── AuthService
+        └── JwtService
+```
+
+### Core Concepts
+
+- **Modules**: Self-contained units that group related services
+- **Providers**: Services, repositories, and other injectable classes
+- **Exports**: Services that a module makes available to other modules
+- **Imports**: Dependencies on other modules
+- **Container**: The central registry that manages all services
+
+## Packages
+
+Nest Dart is organized into three main packages:
+
+### `nest_core`
+The foundation package providing:
+- Module system and dependency injection
+- ApplicationContainer for service management
+- Lifecycle hooks (onModuleInit, onModuleDestroy)
+- Type-safe service resolution with access control
+
+### `nest_flutter`
+Flutter integration providing:
+- ModularApp widget for easy setup
+- ApplicationContainerProvider for widget tree integration
+- Reactive container updates with ChangeNotifier
+- Context-based service access
+
+### `nest_frog`
+Dart Frog backend integration providing:
+- Middleware for automatic container initialization
+- Request context service resolution
+- Unified Modular API for backend services
+- Seamless integration with Dart Frog's middleware system
+
+## Quick Example
+
+Here's a simple example showing how to create and use modules:
+
+```dart
+import 'package:nest_core/nest_core.dart';
+
+// Define a service
+class UserService {
+  final LoggerService _logger;
+  
+  UserService(this._logger);
+  
+  List<String> getUsers() {
+    _logger.log('Fetching users');
+    return ['Alice', 'Bob', 'Charlie'];
+  }
+}
+
+// Create a module
+class UserModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule()];
+  
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserService>(
+      UserService(locator.get<LoggerService>()),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+
+// Initialize the application
+void main() async {
+  final container = ApplicationContainer();
+  await container.registerModule(AppModule());
+  
+  // Use services
+  final userService = container.get<UserService>();
+  final users = userService.getUsers();
+  print('Users: $users');
+}
+```
+
+## Why Choose Nest Dart?
+
+### 🎯 **Proven Architecture**
+Based on NestJS patterns used by thousands of Node.js applications, adapted for Dart's type system and ecosystem.
+
+### 🔧 **Framework Agnostic**
+Works with any Dart application - Flutter apps, Dart Frog backends, CLI tools, or pure Dart libraries.
+
+### 🛡️ **Type Safety**
+Full compile-time type checking with generics ensures your dependencies are always correctly typed.
+
+### 🧪 **Testable by Design**
+Easy dependency mocking and isolated testing with clear module boundaries.
+
+### 📈 **Scalable**
+Add new features as modules without affecting existing code. Perfect for growing applications.
+
+### 🎨 **Developer Experience**
+Clean, intuitive API with excellent IDE support and helpful error messages.
+
+## Getting Started
+
+Ready to dive in? Check out our [Getting Started Guide](/getting-started) to create your first Nest Dart application, or explore our platform-specific guides:
+
+- [Flutter Integration](/flutter-guide) - Build modular Flutter apps
+- [Dart Frog Backend](/frog-guide) - Create scalable REST APIs
+- [Core Package](/core-guide) - Pure Dart applications
+
+## Community & Support
+
+- 📖 [API Reference](/api-reference) - Complete API documentation
+- 🎯 [Examples](/examples) - Real-world usage examples
+- 🐛 [Issues](https://github.com/your-org/nest-dart/issues) - Report bugs or request features
+- 💬 [Discussions](https://github.com/your-org/nest-dart/discussions) - Ask questions and share ideas
+
+---
+
+:::tip
+New to dependency injection? Check out our [Core Concepts](/core-concepts) guide to understand the fundamentals before diving into the code.
+:::

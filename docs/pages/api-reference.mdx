@@ -1,0 +1,632 @@
+---
+title: API Reference
+---
+
+Complete API documentation for all Nest Dart packages.
+
+## nest_core
+
+### ApplicationContainer
+
+The central container that manages modules and services.
+
+```dart
+class ApplicationContainer {
+  ApplicationContainer([GetIt? getIt]);
+}
+```
+
+#### Methods
+
+##### registerModule
+```dart
+Future<void> registerModule(Module module)
+```
+Register a module with the container.
+
+**Parameters:**
+- `module`: The module to register
+
+**Example:**
+```dart
+final container = ApplicationContainer();
+await container.registerModule(AppModule());
+```
+
+##### registerModules
+```dart
+Future<void> registerModules(List<Module> modules)
+```
+Register multiple modules at once.
+
+##### get
+```dart
+T get<T extends Object>({String? instanceName})
+```
+Get a service instance from the container.
+
+**Type Parameters:**
+- `T`: The service type to retrieve
+
+**Parameters:**
+- `instanceName`: Optional instance name for named registrations
+
+**Returns:** Service instance of type `T`
+
+**Throws:** `ServiceNotExportedException` if service is not accessible
+
+##### getWithParams
+```dart
+T getWithParams<T extends Object>(dynamic param1, [dynamic param2])
+```
+Get a service instance with constructor parameters.
+
+##### getAsync
+```dart
+Future<T> getAsync<T extends Object>({String? instanceName})
+```
+Get an async service instance.
+
+##### isRegistered
+```dart
+bool isRegistered<T extends Object>({String? instanceName})
+```
+Check if a service is registered and accessible.
+
+##### getAvailableServices
+```dart
+Set<Type> getAvailableServices()
+```
+Get all services available to the root container.
+
+##### waitUntilReady
+```dart
+Future<void> waitUntilReady({Duration? timeout})
+```
+Wait for the container to be fully initialized.
+
+##### allReady
+```dart
+Future<void> allReady({Duration? timeout, bool ignorePendingAsyncCreation = false})
+```
+Wait for all services to be ready.
+
+##### reset
+```dart
+Future<void> reset()
+```
+Reset the container, destroying all modules and services.
+
+#### Properties
+
+##### isReady
+```dart
+bool get isReady
+```
+Whether the container is fully initialized.
+
+##### modules
+```dart
+List<Module> get modules
+```
+List of all registered modules.
+
+##### context
+```dart
+ModuleContext get context
+```
+The module context for debugging and testing.
+
+##### getIt
+```dart
+GetIt get getIt
+```
+Access to the underlying GetIt instance (use with caution).
+
+### Module
+
+Abstract base class for all modules.
+
+```dart
+abstract class Module {
+  List<Module> get imports => [];
+  void providers(Locator locator);
+  List<Type> get exports => [];
+  
+  Future<void> onModuleInit(Locator locator, ModuleContext context) async {}
+  Future<void> onModuleDestroy(Locator locator, ModuleContext context) async {}
+}
+```
+
+#### Properties
+
+##### imports
+```dart
+List<Module> get imports
+```
+List of modules that this module depends on.
+
+##### exports
+```dart
+List<Type> get exports
+```
+List of service types that this module exports to other modules.
+
+#### Methods
+
+##### providers
+```dart
+void providers(Locator locator)
+```
+Configure services for dependency injection. Must be implemented by subclasses.
+
+**Parameters:**
+- `locator`: The service locator for registering services
+
+##### onModuleInit
+```dart
+Future<void> onModuleInit(Locator locator, ModuleContext context) async
+```
+Called after module registration and dependency resolution.
+
+##### onModuleDestroy
+```dart
+Future<void> onModuleDestroy(Locator locator, ModuleContext context) async
+```
+Called when the module is being destroyed/reset.
+
+### Locator
+
+Interface for dependency injection container operations.
+
+```dart
+abstract class Locator {
+  T get<T extends Object>({String? instanceName, dynamic param1, dynamic param2});
+  T call<T extends Object>({String? instanceName, dynamic param1, dynamic param2});
+  
+  void registerSingleton<T extends Object>(T instance, {String? instanceName, bool? signalsReady, DisposingFunc<T>? dispose});
+  void registerFactory<T extends Object>(FactoryFunc<T> factoryFunc, {String? instanceName});
+  void registerLazySingleton<T extends Object>(FactoryFunc<T> factoryFunc, {String? instanceName, DisposingFunc<T>? dispose});
+  
+  bool isRegistered<T extends Object>({Object? instance, String? instanceName});
+  Future<void> reset({bool dispose = true});
+  Future<void> allReady({Duration? timeout, bool ignorePendingAsyncCreation = false});
+}
+```
+
+#### Methods
+
+##### get / call
+```dart
+T get<T extends Object>({String? instanceName, dynamic param1, dynamic param2})
+T call<T extends Object>({String? instanceName, dynamic param1, dynamic param2})
+```
+Get a service instance. `call` is syntactic sugar for `get`.
+
+##### registerSingleton
+```dart
+void registerSingleton<T extends Object>(
+  T instance, {
+  String? instanceName,
+  bool? signalsReady,
+  DisposingFunc<T>? dispose,
+})
+```
+Register a singleton instance.
+
+**Parameters:**
+- `instance`: The service instance
+- `instanceName`: Optional name for the instance
+- `signalsReady`: Whether the instance signals when ready
+- `dispose`: Optional disposal function
+
+##### registerFactory
+```dart
+void registerFactory<T extends Object>(
+  FactoryFunc<T> factoryFunc, {
+  String? instanceName,
+})
+```
+Register a factory function that creates new instances each time.
+
+##### registerLazySingleton
+```dart
+void registerLazySingleton<T extends Object>(
+  FactoryFunc<T> factoryFunc, {
+  String? instanceName,
+  DisposingFunc<T>? dispose,
+})
+```
+Register a lazy singleton that's created on first access.
+
+### ModuleContext
+
+Context for tracking module dependencies and exports.
+
+```dart
+class ModuleContext {
+  void registerModuleExports(Type moduleType, List<Type> exports);
+  void registerModuleImports(Type moduleType, List<Type> imports);
+  void registerServiceProvider(Type serviceType, Type moduleType);
+  void markAsGlobal(Type serviceType);
+  
+  bool canAccess(Type requestingModule, Type serviceType);
+  Set<Type> getAvailableServices(Type moduleType);
+}
+```
+
+### Exceptions
+
+#### ServiceNotExportedException
+```dart
+class ServiceNotExportedException implements Exception {
+  final Type serviceType;
+  final Type fromModule;
+  final Type toModule;
+  
+  const ServiceNotExportedException(this.serviceType, this.fromModule, this.toModule);
+}
+```
+Thrown when trying to access a service that hasn't been exported by its module.
+
+## nest_flutter
+
+### ModularApp
+
+Widget that initializes the dependency injection container.
+
+```dart
+class ModularApp extends StatefulWidget {
+  const ModularApp({
+    Key? key,
+    required this.module,
+    required this.child,
+    this.container,
+  });
+  
+  final Module module;
+  final Widget child;
+  final ApplicationContainer? container;
+}
+```
+
+#### Properties
+
+##### module
+```dart
+final Module module
+```
+The root module to initialize.
+
+##### child
+```dart
+final Widget child
+```
+The child widget to wrap.
+
+##### container
+```dart
+final ApplicationContainer? container
+```
+Optional custom container instance.
+
+### ApplicationContainerProvider
+
+InheritedNotifier that provides ApplicationContainer to the widget tree.
+
+```dart
+class ApplicationContainerProvider extends InheritedNotifier<ApplicationContainerNotifier> {
+  const ApplicationContainerProvider({
+    Key? key,
+    required ApplicationContainerNotifier notifier,
+    required Widget child,
+  });
+  
+  ApplicationContainerProvider.create({Key? key, ApplicationContainer? container, required Widget child});
+  ApplicationContainerProvider.withModules({Key? key, required List<Module> modules, ApplicationContainer? container, required Widget child});
+}
+```
+
+#### Static Methods
+
+##### of
+```dart
+static ApplicationContainerNotifier of(BuildContext context)
+```
+Get the ApplicationContainerNotifier from the widget tree.
+
+##### maybeOf
+```dart
+static ApplicationContainerNotifier? maybeOf(BuildContext context)
+```
+Get the ApplicationContainerNotifier or null if not found.
+
+##### containerOf
+```dart
+static ApplicationContainer containerOf(BuildContext context)
+```
+Get the ApplicationContainer from the widget tree.
+
+##### maybeContainerOf
+```dart
+static ApplicationContainer? maybeContainerOf(BuildContext context)
+```
+Get the ApplicationContainer or null if not found.
+
+### ApplicationContainerNotifier
+
+ChangeNotifier wrapper for ApplicationContainer.
+
+```dart
+class ApplicationContainerNotifier extends ChangeNotifier {
+  ApplicationContainerNotifier([ApplicationContainer? container]);
+  ApplicationContainerNotifier.withModules(List<Module> modules, [ApplicationContainer? container]);
+}
+```
+
+#### Properties
+
+##### container
+```dart
+ApplicationContainer get container
+```
+The underlying container instance.
+
+#### Methods
+
+##### registerModule
+```dart
+void registerModule(Module module)
+```
+Register a module without notification.
+
+##### registerModuleWithNotification
+```dart
+void registerModuleWithNotification(Module module)
+```
+Register a module and notify listeners.
+
+##### get
+```dart
+T get<T extends Object>({String? instanceName})
+```
+Get a service instance.
+
+##### reset
+```dart
+void reset()
+```
+Reset the container and notify listeners.
+
+### Modular (Flutter)
+
+Static class providing service access in Flutter apps.
+
+```dart
+class Modular {
+  static T get<T extends Object>({String? instanceName});
+  static T getWithParams<T extends Object>(dynamic param1, [dynamic param2]);
+  static Future<T> getAsync<T extends Object>({String? instanceName});
+  static bool isRegistered<T extends Object>({String? instanceName});
+  
+  static ApplicationContainerNotifier of(BuildContext context);
+  static ApplicationContainer containerOf(BuildContext context);
+  static Set<Type> getAvailableServices();
+}
+```
+
+## nest_frog
+
+### Modular (Frog)
+
+Static class providing service access in Dart Frog apps.
+
+```dart
+class Modular {
+  static Future<void> initialize(Module appModule);
+  static ModularContext of(RequestContext context);
+  static T get<T extends Object>();
+  
+  static ApplicationContainer get container;
+  static bool get isInitialized;
+  static Future<void> reset();
+}
+```
+
+#### Methods
+
+##### initialize
+```dart
+static Future<void> initialize(Module appModule)
+```
+Initialize the application container with the root module.
+
+##### of
+```dart
+static ModularContext of(RequestContext context)
+```
+Get a context-aware service accessor.
+
+##### get
+```dart
+static T get<T extends Object>()
+```
+Get a service directly from the container.
+
+### ModularContext
+
+Context wrapper for request-scoped service access.
+
+```dart
+class ModularContext {
+  T get<T extends Object>();
+  bool has<T extends Object>();
+  RequestContext get context;
+}
+```
+
+#### Methods
+
+##### get
+```dart
+T get<T extends Object>()
+```
+Get a service from the request context, with fallback to container.
+
+##### has
+```dart
+bool has<T extends Object>()
+```
+Check if a service is available in the context.
+
+### nestFrogMiddleware
+
+Middleware factory for Dart Frog integration.
+
+```dart
+Middleware nestFrogMiddleware(Module appModule)
+```
+
+Creates middleware that initializes the container and provides dependency injection.
+
+**Parameters:**
+- `appModule`: The root module to initialize
+
+**Returns:** Dart Frog middleware
+
+**Example:**
+```dart
+Handler middleware(Handler handler) {
+  return handler.use(nestFrogMiddleware(AppModule()));
+}
+```
+
+## Type Definitions
+
+### FactoryFunc
+```dart
+typedef FactoryFunc<T> = T Function()
+```
+Function that creates service instances.
+
+### DisposingFunc
+```dart
+typedef DisposingFunc<T> = void Function(T instance)
+```
+Function called when disposing service instances.
+
+## Constants and Enums
+
+### Service Registration Types
+
+Services can be registered in three ways:
+
+- **Singleton**: Created once and reused (`registerSingleton`)
+- **Factory**: New instance created each time (`registerFactory`)
+- **Lazy Singleton**: Created on first access (`registerLazySingleton`)
+
+### Access Levels
+
+Services have different access levels:
+
+- **Private**: Only accessible within the same module
+- **Exported**: Accessible by modules that import the providing module
+- **Global**: Accessible from the root container (auto-exported)
+
+## Error Codes
+
+### ServiceNotExportedException
+Thrown when attempting to access a service that hasn't been exported.
+
+**Common causes:**
+- Service not listed in module's `exports`
+- Module not imported by the requesting module
+- Typo in service type
+
+**Resolution:**
+- Add service to module's `exports` list
+- Import the providing module
+- Check service type spelling
+
+### Circular Dependency Detection
+Nest Dart automatically detects and prevents circular dependencies during module registration.
+
+**Resolution:**
+- Restructure modules to avoid circular imports
+- Extract common dependencies to a shared module
+- Use lazy loading for optional dependencies
+
+## Migration Guide
+
+### From GetIt Direct Usage
+
+**Before:**
+```dart
+final getIt = GetIt.instance;
+getIt.registerSingleton<UserService>(UserService());
+final userService = getIt.get<UserService>();
+```
+
+**After:**
+```dart
+class UserModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserService>(UserService());
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+
+final container = ApplicationContainer();
+await container.registerModule(UserModule());
+final userService = container.get<UserService>();
+```
+
+### From Provider Package
+
+**Before:**
+```dart
+MultiProvider(
+  providers: [
+    Provider<UserService>(create: (_) => UserService()),
+  ],
+  child: MyApp(),
+)
+```
+
+**After:**
+```dart
+ModularApp(
+  module: AppModule(),
+  child: MyApp(),
+)
+```
+
+## Best Practices
+
+### Module Organization
+- Group related services in the same module
+- Keep modules focused on a single domain
+- Use clear, descriptive module names
+
+### Service Registration
+- Prefer singletons for stateless services
+- Use factories for stateful or short-lived services
+- Register interfaces, not implementations when possible
+
+### Error Handling
+- Always handle `ServiceNotExportedException`
+- Use try-catch blocks in service methods
+- Provide meaningful error messages
+
+### Testing
+- Create test modules with mock services
+- Use `ApplicationContainer.reset()` in test teardown
+- Test module initialization and lifecycle hooks
+
+### Performance
+- Use lazy singletons for expensive services
+- Dispose of resources in module destroy hooks
+- Monitor container initialization time

@@ -1,0 +1,486 @@
+---
+title: Nest Core Package
+---
+
+The `nest_core` package is the foundation of the Nest Dart framework. It provides the core dependency injection system, module architecture, and application container that powers all Nest Dart applications.
+
+## Overview
+
+`nest_core` implements a NestJS-inspired module system with the following key components:
+
+- **ApplicationContainer**: Central service registry and lifecycle manager
+- **Module**: Base class for organizing related services
+- **Locator**: Interface for type-safe service resolution
+- **ModuleContext**: Manages module dependencies and exports
+
+## Installation
+
+```yaml
+dependencies:
+  nest_core: ^1.0.0
+```
+
+## Core Concepts
+
+### ApplicationContainer
+
+The `ApplicationContainer` is the heart of your application. It manages module registration, service resolution, and application lifecycle.
+
+```dart
+import 'package:nest_core/nest_core.dart';
+
+// Create a container
+final container = ApplicationContainer();
+
+// Register modules
+await container.registerModule(AppModule());
+
+// Get services
+final userService = container.get<UserService>();
+
+// Check if ready
+if (container.isReady) {
+  print('Container initialized successfully');
+}
+```
+
+#### Container Methods
+
+```dart
+class ApplicationContainer {
+  // Module management
+  Future<void> registerModule(Module module);
+  Future<void> registerModules(List<Module> modules);
+  
+  // Service resolution
+  T get<T extends Object>({String? instanceName});
+  T getWithParams<T extends Object>(dynamic param1, [dynamic param2]);
+  Future<T> getAsync<T extends Object>({String? instanceName});
+  
+  // Status checking
+  bool get isReady;
+  bool isRegistered<T extends Object>({String? instanceName});
+  Set<Type> getAvailableServices();
+  
+  // Lifecycle
+  Future<void> waitUntilReady({Duration? timeout});
+  Future<void> allReady({Duration? timeout});
+  Future<void> reset();
+  
+  // Access to underlying systems
+  GetIt get getIt; // Use with caution
+  ModuleContext get context;
+  List<Module> get modules;
+}
+```
+
+### Module System
+
+Modules are the building blocks of your application. They group related services and define their dependencies.
+
+```dart
+class UserModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule(), DatabaseModule()];
+  
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserRepository>(
+      UserRepository(locator.get<DatabaseService>()),
+    );
+    
+    locator.registerSingleton<UserService>(
+      UserService(locator.get<UserRepository>()),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+```
+
+#### Module Lifecycle Hooks
+
+Modules support initialization and cleanup hooks:
+
+```dart
+class DatabaseModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerLazySingleton<DatabaseService>(() => DatabaseService());
+  }
+  
+  @override
+  Future<void> onModuleInit(Locator locator, ModuleContext context) async {
+    final db = locator.get<DatabaseService>();
+    await db.connect();
+    await db.runMigrations();
+    print('Database module initialized');
+  }
+  
+  @override
+  Future<void> onModuleDestroy(Locator locator, ModuleContext context) async {
+    final db = locator.get<DatabaseService>();
+    await db.close();
+    print('Database module destroyed');
+  }
+  
+  @override
+  List<Type> get exports => [DatabaseService];
+}
+```
+
+### Service Registration
+
+The `Locator` interface provides several ways to register services:
+
+#### Singleton Registration
+
+Services are created once and reused throughout the application:
+
+```dart
+@override
+void providers(Locator locator) {
+  // Direct instance
+  locator.registerSingleton<ConfigService>(ConfigService());
+  
+  // With disposal
+  locator.registerSingleton<DatabaseService>(
+    DatabaseService(),
+    dispose: (service) => service.close(),
+  );
+  
+  // With instance name
+  locator.registerSingleton<ApiClient>(
+    ApiClient('https://api.example.com'),
+    instanceName: 'mainApi',
+  );
+}
+```
+
+#### Factory Registration
+
+New instances are created each time the service is requested:
+
+```dart
+@override
+void providers(Locator locator) {
+  locator.registerFactory<HttpClient>(() => HttpClient());
+  
+  // With parameters
+  locator.registerFactory<RequestLogger>(() => RequestLogger());
+}
+```
+
+#### Lazy Singleton Registration
+
+Services are created on first access:
+
+```dart
+@override
+void providers(Locator locator) {
+  locator.registerLazySingleton<ExpensiveService>(
+    () => ExpensiveService(),
+    dispose: (service) => service.cleanup(),
+  );
+}
+```
+
+### Access Control
+
+Nest Core enforces strict access control through module exports:
+
+```dart
+class CoreModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<ConfigService>(ConfigService());
+    locator.registerSingleton<LoggerService>(LoggerService());
+    locator.registerSingleton<InternalService>(InternalService()); // Not exported
+  }
+  
+  @override
+  List<Type> get exports => [ConfigService, LoggerService]; // InternalService is private
+}
+
+class UserModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // ✅ This works - ConfigService is exported
+    final config = locator.get<ConfigService>();
+    
+    // ❌ This throws ServiceNotExportedException - InternalService is not exported
+    // final internal = locator.get<InternalService>();
+    
+    locator.registerSingleton<UserService>(UserService(config));
+  }
+}
+```
+
+## Advanced Features
+
+### Module Context
+
+The `ModuleContext` provides information about module relationships and service availability:
+
+```dart
+@override
+Future<void> onModuleInit(Locator locator, ModuleContext context) async {
+  // Get available services for this module
+  final availableServices = context.getAvailableServices(runtimeType);
+  print('Available services: $availableServices');
+  
+  // Check if a service can be accessed
+  final canAccessLogger = context.canAccess(runtimeType, LoggerService);
+  print('Can access LoggerService: $canAccessLogger');
+}
+```
+
+### Custom Container
+
+You can provide your own GetIt instance:
+
+```dart
+final customGetIt = GetIt.asNewInstance();
+final container = ApplicationContainer(customGetIt);
+```
+
+### Error Handling
+
+Nest Core provides specific exceptions for common issues:
+
+```dart
+try {
+  final service = container.get<PrivateService>();
+} on ServiceNotExportedException catch (e) {
+  print('Service ${e.serviceType} is not exported by ${e.fromModule}');
+}
+```
+
+## Testing Support
+
+Nest Core makes testing easy with container isolation:
+
+```dart
+import 'package:test/test.dart';
+import 'package:nest_core/nest_core.dart';
+
+void main() {
+  group('UserService Tests', () {
+    late ApplicationContainer container;
+    
+    setUp(() async {
+      container = ApplicationContainer();
+      await container.registerModule(TestModule());
+    });
+    
+    tearDown(() async {
+      await container.reset();
+    });
+    
+    test('should create user', () async {
+      final userService = container.get<UserService>();
+      final user = userService.createUser('Test User', 'test@example.com');
+      
+      expect(user.name, equals('Test User'));
+      expect(user.email, equals('test@example.com'));
+    });
+  });
+}
+
+class TestModule extends Module {
+  @override
+  void providers(Locator locator) {
+    // Register mock services for testing
+    locator.registerSingleton<LoggerService>(MockLoggerService());
+    locator.registerSingleton<UserRepository>(MockUserRepository());
+    locator.registerSingleton<UserService>(
+      UserService(locator.get<UserRepository>()),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+```
+
+### Mock Services
+
+Create mock implementations for testing:
+
+```dart
+class MockLoggerService implements LoggerService {
+  final List<String> logs = [];
+  
+  @override
+  void log(String message) {
+    logs.add(message);
+  }
+  
+  @override
+  void error(String message) {
+    logs.add('ERROR: $message');
+  }
+}
+
+class MockUserRepository implements UserRepository {
+  final List<User> _users = [];
+  
+  @override
+  List<User> findAll() => List.from(_users);
+  
+  @override
+  User? findById(int id) => _users.where((u) => u.id == id).firstOrNull;
+  
+  @override
+  User create(String name, String email) {
+    final user = User(id: _users.length + 1, name: name, email: email);
+    _users.add(user);
+    return user;
+  }
+}
+```
+
+## Performance Considerations
+
+### Lazy Loading
+
+Use lazy singletons for expensive services:
+
+```dart
+@override
+void providers(Locator locator) {
+  // Only created when first accessed
+  locator.registerLazySingleton<MLModelService>(
+    () => MLModelService.loadModel(),
+  );
+}
+```
+
+### Disposal
+
+Properly dispose of resources:
+
+```dart
+@override
+void providers(Locator locator) {
+  locator.registerSingleton<DatabaseConnection>(
+    DatabaseConnection(),
+    dispose: (connection) => connection.close(),
+  );
+}
+```
+
+### Container Monitoring
+
+Monitor container performance:
+
+```dart
+final container = ApplicationContainer();
+await container.registerModule(AppModule());
+
+// Wait for all services to be ready
+await container.allReady(timeout: Duration(seconds: 30));
+
+print('Container ready with ${container.modules.length} modules');
+print('Available services: ${container.getAvailableServices().length}');
+```
+
+## Best Practices
+
+### 1. Module Organization
+
+Organize modules by domain or layer:
+
+```dart
+// Domain modules
+class UserModule extends Module { /* ... */ }
+class ProductModule extends Module { /* ... */ }
+class OrderModule extends Module { /* ... */ }
+
+// Infrastructure modules
+class DatabaseModule extends Module { /* ... */ }
+class CacheModule extends Module { /* ... */ }
+class HttpModule extends Module { /* ... */ }
+
+// Core modules
+class ConfigModule extends Module { /* ... */ }
+class LoggingModule extends Module { /* ... */ }
+```
+
+### 2. Service Interfaces
+
+Use abstract classes for better testability:
+
+```dart
+abstract class UserRepository {
+  Future<User?> findById(int id);
+  Future<List<User>> findAll();
+  Future<User> create(String name, String email);
+}
+
+class DatabaseUserRepository implements UserRepository {
+  // Implementation
+}
+
+class InMemoryUserRepository implements UserRepository {
+  // Test implementation
+}
+```
+
+### 3. Configuration Services
+
+Centralize configuration:
+
+```dart
+class ConfigService {
+  final Map<String, dynamic> _config;
+  
+  ConfigService(this._config);
+  
+  T get<T>(String key) => _config[key] as T;
+  
+  String get databaseUrl => get<String>('database_url');
+  int get port => get<int>('port');
+  bool get debugMode => get<bool>('debug_mode');
+}
+
+class ConfigModule extends Module {
+  @override
+  void providers(Locator locator) {
+    final config = _loadConfig(); // Load from environment, files, etc.
+    locator.registerSingleton<ConfigService>(ConfigService(config));
+  }
+  
+  @override
+  List<Type> get exports => [ConfigService];
+}
+```
+
+### 4. Error Handling
+
+Handle initialization errors gracefully:
+
+```dart
+@override
+Future<void> onModuleInit(Locator locator, ModuleContext context) async {
+  try {
+    final db = locator.get<DatabaseService>();
+    await db.connect();
+  } catch (e) {
+    final logger = locator.get<LoggerService>();
+    logger.error('Failed to initialize database: $e');
+    rethrow;
+  }
+}
+```
+
+## Next Steps
+
+- Learn about [Flutter integration](/flutter-guide) for mobile apps
+- Explore [Dart Frog integration](/frog-guide) for backend services
+- Check out [testing patterns](/testing-guide) for your modules
+- View [API reference](/api-reference) for complete documentation

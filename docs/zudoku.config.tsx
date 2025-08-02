@@ -1,47 +1,78 @@
 import type { ZudokuConfig } from "zudoku";
 
 const config: ZudokuConfig = {
+  metadata: {
+    title: "Nest Dart",
+    description: "NestJS-inspired dependency injection framework for Dart",
+  },
   site: {
-    logo: {
-      src: { light: "/logo-light.svg", dark: "/logo-dark.svg" },
-      alt: "Zudoku",
-      width: "130px",
-    },
+    title: "Nest Dart",
   },
   navigation: [
     {
       type: "category",
       label: "Documentation",
+      collapsed: false,
+      collapsible: true,
       items: [
         {
           type: "category",
           label: "Getting Started",
           icon: "sparkles",
+          collapsed: false,
+          collapsible: true,
           items: [
             "/introduction",
-            {
-              type: "link",
-              icon: "folder-cog",
-              badge: {
-                label: "New",
-                color: "purple",
-              },
-              label: "API Reference",
-              to: "/api",
-            },
+            "/getting-started",
+          ],
+        },
+        {
+          type: "category",
+          label: "Guides",
+          icon: "book-open",
+          collapsed: false,
+          collapsible: true,
+          items: [
+            "/core-guide",
+            "/flutter-guide",
+            "/frog-guide",
+          ],
+        },
+        {
+          type: "category",
+          label: "Reference",
+          icon: "code",
+          collapsed: false,
+          collapsible: true,
+          items: [
+            "/api-reference",
+            "/examples",
           ],
         },
         {
           type: "category",
           label: "Useful Links",
-          collapsible: false,
           icon: "link",
+          collapsed: false,
+          collapsible: true,
           items: [
             {
               type: "link",
-              icon: "book",
-              label: "Zudoku Docs",
-              to: "https://zudoku.dev/docs/",
+              icon: "github",
+              label: "GitHub Repository",
+              to: "https://github.com/chornthorn/nest-dart",
+            },
+            {
+              type: "link",
+              icon: "message-circle",
+              label: "Discussions",
+              to: "https://github.com/chornthorn/nest-dart/discussions",
+            },
+            {
+              type: "link",
+              icon: "bug",
+              label: "Report Issues",
+              to: "https://github.com/chornthorn/nest-dart/issues",
             },
           ],
         },
@@ -49,18 +80,24 @@ const config: ZudokuConfig = {
     },
     {
       type: "link",
-      to: "/api",
+      to: "/api-reference",
       label: "API Reference",
     },
   ],
   redirects: [{ from: "/", to: "/introduction" }],
-  apis: [
-    {
-      type: "file",
-      input: "./apis/openapi.yaml",
-      path: "/api",
+  syntaxHighlighting: {
+    themes: {
+      light: "github-light",
+      dark: "github-dark",
     },
-  ],
+    languages: [
+      "dart",
+      "typescript",
+      "javascript",
+      "json",
+      "yaml",
+    ],
+  },
 };
 
 export default config;

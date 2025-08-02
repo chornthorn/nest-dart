@@ -12,15 +12,15 @@
   "dependencies": {
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0",
-    "zudoku": "0.57.1"
+    "zudoku": "^0.59.0"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5",
-    "eslint": "^8",
     "@typescript-eslint/eslint-plugin": "^8",
-    "@typescript-eslint/parser": "^8"
+    "@typescript-eslint/parser": "^8",
+    "eslint": "^8",
+    "typescript": "^5"
   }
 }

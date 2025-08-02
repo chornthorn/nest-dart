@@ -1,0 +1,742 @@
+---
+title: Flutter Integration
+---
+
+The `nest_flutter` package provides seamless integration between Nest Dart's dependency injection system and Flutter's widget tree. It offers Flutter-specific APIs and patterns for building modular, testable Flutter applications.
+
+## Installation
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  nest_core: ^1.0.0
+  nest_flutter: ^1.0.0
+```
+
+## Quick Start
+
+### 1. Create Your Modules
+
+```dart
+// lib/modules/app_module.dart
+import 'package:nest_core/nest_core.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+import 'core_module.dart';
+import 'user_module.dart';
+
+class AppModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule(), UserModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // App-level services
+  }
+}
+```
+
+### 2. Wrap Your App with ModularApp
+
+```dart
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+import 'modules/app_module.dart';
+
+void main() {
+  runApp(
+    ModularApp(
+      module: AppModule(),
+      child: MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Nest Flutter Demo',
+      home: HomePage(),
+    );
+  }
+}
+```
+
+### 3. Use Services in Widgets
+
+```dart
+// lib/pages/home_page.dart
+import 'package:flutter/material.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+import '../services/user_service.dart';
+
+class HomePage extends StatefulWidget {
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late final UserService _userService;
+  List<User> _users = [];
+  
+  @override
+  void initState() {
+    super.initState();
+    // Get service from the container
+    _userService = Modular.get<UserService>();
+    _loadUsers();
+  }
+  
+  void _loadUsers() async {
+    final users = await _userService.getAllUsers();
+    setState(() {
+      _users = users;
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Users')),
+      body: ListView.builder(
+        itemCount: _users.length,
+        itemBuilder: (context, index) {
+          final user = _users[index];
+          return ListTile(
+            title: Text(user.name),
+            subtitle: Text(user.email),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addUser,
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+  
+  void _addUser() async {
+    final user = await _userService.createUser(
+      'New User ${_users.length + 1}',
+      'user${_users.length + 1}@example.com',
+    );
+    setState(() {
+      _users.add(user);
+    });
+  }
+}
+```
+
+## Core Components
+
+### ModularApp Widget
+
+The `ModularApp` widget initializes the dependency injection container and provides it to the widget tree:
+
+```dart
+ModularApp(
+  module: AppModule(),
+  child: MyApp(),
+  // Optional: provide custom container
+  container: ApplicationContainer(),
+)
+```
+
+### ApplicationContainerProvider
+
+For more control, you can use `ApplicationContainerProvider` directly:
+
+```dart
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ApplicationContainerProvider.withModules(
+      modules: [AppModule()],
+      child: MaterialApp(
+        home: HomePage(),
+      ),
+    );
+  }
+}
+```
+
+### Modular Class
+
+The `Modular` class provides static methods for accessing services:
+
+```dart
+class Modular {
+  // Get service from global container
+  static T get<T extends Object>({String? instanceName});
+  
+  // Get service with parameters
+  static T getWithParams<T extends Object>(dynamic param1, [dynamic param2]);
+  
+  // Get async service
+  static Future<T> getAsync<T extends Object>({String? instanceName});
+  
+  // Check if service is registered
+  static bool isRegistered<T extends Object>({String? instanceName});
+  
+  // Get container from context
+  static ApplicationContainer containerOf(BuildContext context);
+  
+  // Get container notifier from context
+  static ApplicationContainerNotifier of(BuildContext context);
+}
+```
+
+## Service Access Patterns
+
+### 1. Static Access (Recommended)
+
+Use `Modular.get<T>()` for simple service access:
+
+```dart
+class UserListWidget extends StatefulWidget {
+  @override
+  State<UserListWidget> createState() => _UserListWidgetState();
+}
+
+class _UserListWidgetState extends State<UserListWidget> {
+  late final UserService _userService;
+  
+  @override
+  void initState() {
+    super.initState();
+    _userService = Modular.get<UserService>();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<User>>(
+      future: _userService.getAllUsers(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return ListView(
+            children: snapshot.data!
+                .map((user) => UserTile(user: user))
+                .toList(),
+          );
+        }
+        return CircularProgressIndicator();
+      },
+    );
+  }
+}
+```
+
+### 2. Context-Based Access
+
+Use context for more Flutter-like patterns:
+
+```dart
+class UserProfileWidget extends StatelessWidget {
+  final int userId;
+  
+  const UserProfileWidget({required this.userId});
+  
+  @override
+  Widget build(BuildContext context) {
+    final userService = Modular.of(context).get<UserService>();
+    
+    return FutureBuilder<User?>(
+      future: userService.getUserById(userId),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final user = snapshot.data!;
+          return Column(
+            children: [
+              Text(user.name, style: Theme.of(context).textTheme.headlineSmall),
+              Text(user.email),
+            ],
+          );
+        }
+        return CircularProgressIndicator();
+      },
+    );
+  }
+}
+```
+
+### 3. Reactive Services with ChangeNotifier
+
+Create reactive services that work with Flutter's reactive system:
+
+```dart
+// lib/services/counter_service.dart
+import 'package:flutter/foundation.dart';
+
+class CounterService extends ChangeNotifier {
+  int _count = 0;
+  
+  int get count => _count;
+  
+  void increment() {
+    _count++;
+    notifyListeners();
+  }
+  
+  void decrement() {
+    _count--;
+    notifyListeners();
+  }
+  
+  void reset() {
+    _count = 0;
+    notifyListeners();
+  }
+}
+```
+
+Register as singleton in your module:
+
+```dart
+class AppModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<CounterService>(CounterService());
+  }
+  
+  @override
+  List<Type> get exports => [CounterService];
+}
+```
+
+Use with `ListenableBuilder` or `ValueListenableBuilder`:
+
+```dart
+class CounterWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final counterService = Modular.get<CounterService>();
+    
+    return ListenableBuilder(
+      listenable: counterService,
+      builder: (context, child) {
+        return Column(
+          children: [
+            Text('Count: ${counterService.count}'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: counterService.decrement,
+                  child: Text('-'),
+                ),
+                ElevatedButton(
+                  onPressed: counterService.increment,
+                  child: Text('+'),
+                ),
+                ElevatedButton(
+                  onPressed: counterService.reset,
+                  child: Text('Reset'),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+```
+
+## Advanced Patterns
+
+### Custom Widgets with Services
+
+Create reusable widgets that encapsulate service logic:
+
+```dart
+class UserSelectorWidget extends StatefulWidget {
+  final void Function(User?) onUserSelected;
+  
+  const UserSelectorWidget({required this.onUserSelected});
+  
+  @override
+  State<UserSelectorWidget> createState() => _UserSelectorWidgetState();
+}
+
+class _UserSelectorWidgetState extends State<UserSelectorWidget> {
+  late final UserService _userService;
+  List<User> _users = [];
+  User? _selectedUser;
+  
+  @override
+  void initState() {
+    super.initState();
+    _userService = Modular.get<UserService>();
+    _loadUsers();
+  }
+  
+  void _loadUsers() async {
+    final users = await _userService.getAllUsers();
+    setState(() {
+      _users = users;
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButton<User>(
+      value: _selectedUser,
+      hint: Text('Select a user'),
+      items: _users.map((user) {
+        return DropdownMenuItem<User>(
+          value: user,
+          child: Text(user.name),
+        );
+      }).toList(),
+      onChanged: (user) {
+        setState(() {
+          _selectedUser = user;
+        });
+        widget.onUserSelected(user);
+      },
+    );
+  }
+}
+```
+
+### Service-Aware StatefulWidget
+
+Create a base class for widgets that need services:
+
+```dart
+abstract class ServiceAwareWidget<T extends StatefulWidget> extends State<T> {
+  late final ApplicationContainer _container;
+  
+  @override
+  void initState() {
+    super.initState();
+    _container = Modular.containerOf(context);
+    onServicesReady();
+  }
+  
+  /// Called after services are available
+  void onServicesReady() {}
+  
+  /// Get a service
+  S getService<S extends Object>() => _container.get<S>();
+}
+
+class UserPageState extends ServiceAwareWidget<UserPage> {
+  late final UserService _userService;
+  late final LoggerService _logger;
+  
+  @override
+  void onServicesReady() {
+    _userService = getService<UserService>();
+    _logger = getService<LoggerService>();
+    _logger.log('UserPage initialized');
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    // Build your widget
+    return Container();
+  }
+}
+```
+
+## Testing Flutter Apps
+
+### Widget Testing with Modules
+
+Test widgets with mock services:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+
+void main() {
+  group('UserListWidget Tests', () {
+    testWidgets('should display users', (tester) async {
+      await tester.pumpWidget(
+        ModularApp(
+          module: TestModule(),
+          child: MaterialApp(
+            home: UserListWidget(),
+          ),
+        ),
+      );
+      
+      // Wait for async operations
+      await tester.pumpAndSettle();
+      
+      // Verify users are displayed
+      expect(find.text('Test User 1'), findsOneWidget);
+      expect(find.text('Test User 2'), findsOneWidget);
+    });
+    
+    testWidgets('should add new user', (tester) async {
+      await tester.pumpWidget(
+        ModularApp(
+          module: TestModule(),
+          child: MaterialApp(
+            home: UserListWidget(),
+          ),
+        ),
+      );
+      
+      await tester.pumpAndSettle();
+      
+      // Tap add button
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+      
+      // Verify new user is added
+      expect(find.text('New User 3'), findsOneWidget);
+    });
+  });
+}
+
+class TestModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserService>(MockUserService());
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+
+class MockUserService implements UserService {
+  final List<User> _users = [
+    User(id: 1, name: 'Test User 1', email: 'test1@example.com'),
+    User(id: 2, name: 'Test User 2', email: 'test2@example.com'),
+  ];
+  
+  @override
+  Future<List<User>> getAllUsers() async {
+    await Future.delayed(Duration(milliseconds: 100));
+    return List.from(_users);
+  }
+  
+  @override
+  Future<User> createUser(String name, String email) async {
+    final user = User(id: _users.length + 1, name: name, email: email);
+    _users.add(user);
+    return user;
+  }
+}
+```
+
+### Integration Testing
+
+Test the full app with real services:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:my_app/main.dart' as app;
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  
+  group('App Integration Tests', () {
+    testWidgets('full user flow', (tester) async {
+      app.main();
+      await tester.pumpAndSettle();
+      
+      // Navigate to user page
+      await tester.tap(find.text('Users'));
+      await tester.pumpAndSettle();
+      
+      // Add a user
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+      
+      // Fill form
+      await tester.enterText(find.byKey(Key('name_field')), 'John Doe');
+      await tester.enterText(find.byKey(Key('email_field')), 'john@example.com');
+      
+      // Submit
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      
+      // Verify user appears in list
+      expect(find.text('John Doe'), findsOneWidget);
+    });
+  });
+}
+```
+
+## Performance Optimization
+
+### Lazy Service Loading
+
+Use lazy singletons for expensive services:
+
+```dart
+class AppModule extends Module {
+  @override
+  void providers(Locator locator) {
+    // Only created when first accessed
+    locator.registerLazySingleton<ImageProcessingService>(
+      () => ImageProcessingService(),
+    );
+    
+    locator.registerLazySingleton<DatabaseService>(
+      () => DatabaseService(),
+      dispose: (service) => service.close(),
+    );
+  }
+}
+```
+
+### Service Disposal
+
+Properly dispose of services when the app is destroyed:
+
+```dart
+class MyApp extends StatefulWidget {
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void dispose() {
+    // Services with dispose callbacks will be automatically cleaned up
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return ModularApp(
+      module: AppModule(),
+      child: MaterialApp(home: HomePage()),
+    );
+  }
+}
+```
+
+## Best Practices
+
+### 1. Service Organization
+
+Organize services by feature:
+
+```dart
+// lib/services/auth/auth_service.dart
+class AuthService {
+  // Authentication logic
+}
+
+// lib/services/user/user_service.dart
+class UserService {
+  // User management logic
+}
+
+// lib/services/storage/storage_service.dart
+class StorageService {
+  // Data persistence logic
+}
+```
+
+### 2. State Management
+
+Combine with state management solutions:
+
+```dart
+// Using with Bloc
+class UserBloc extends Bloc<UserEvent, UserState> {
+  final UserService _userService;
+  
+  UserBloc(this._userService) : super(UserInitial());
+  
+  // Bloc logic
+}
+
+class UserModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserService>(UserService());
+    locator.registerFactory<UserBloc>(
+      () => UserBloc(locator.get<UserService>()),
+    );
+  }
+}
+```
+
+### 3. Error Handling
+
+Handle service errors gracefully:
+
+```dart
+class UserService {
+  Future<List<User>> getAllUsers() async {
+    try {
+      return await _repository.findAll();
+    } catch (e) {
+      final logger = Modular.get<LoggerService>();
+      logger.error('Failed to load users: $e');
+      throw UserServiceException('Failed to load users', e);
+    }
+  }
+}
+
+class UserServiceException implements Exception {
+  final String message;
+  final dynamic cause;
+  
+  UserServiceException(this.message, this.cause);
+  
+  @override
+  String toString() => 'UserServiceException: $message';
+}
+```
+
+### 4. Navigation with Services
+
+Integrate with Flutter navigation:
+
+```dart
+class NavigationService {
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  
+  Future<T?> pushNamed<T>(String routeName, {Object? arguments}) {
+    return navigatorKey.currentState!.pushNamed<T>(routeName, arguments: arguments);
+  }
+  
+  void pop<T>([T? result]) {
+    navigatorKey.currentState!.pop<T>(result);
+  }
+}
+
+class AppModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<NavigationService>(NavigationService());
+  }
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final navigationService = Modular.get<NavigationService>();
+    
+    return MaterialApp(
+      navigatorKey: navigationService.navigatorKey,
+      routes: {
+        '/': (context) => HomePage(),
+        '/users': (context) => UserPage(),
+        '/profile': (context) => ProfilePage(),
+      },
+    );
+  }
+}
+```
+
+## Next Steps
+
+- Explore [Dart Frog integration](/frog-guide) for full-stack apps
+- Learn about [testing patterns](/testing-guide) for Flutter apps
+- Check out [API reference](/api-reference) for complete documentation
+- View [examples](/examples) for real-world usage patterns

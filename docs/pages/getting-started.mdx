@@ -1,0 +1,391 @@
+---
+title: Getting Started
+---
+
+This guide will help you create your first Nest Dart application from scratch. We'll build a simple user management system to demonstrate the core concepts.
+
+## Installation
+
+Add the appropriate Nest Dart packages to your `pubspec.yaml`:
+
+### For Pure Dart Applications
+
+```yaml
+dependencies:
+  nest_core: ^1.0.0
+```
+
+### For Flutter Applications
+
+```yaml
+dependencies:
+  nest_core: ^1.0.0
+  nest_flutter: ^1.0.0
+```
+
+### For Dart Frog Backends
+
+```yaml
+dependencies:
+  nest_core: ^1.0.0
+  nest_frog: ^1.0.0
+  dart_frog: ^1.1.0
+```
+
+Then run:
+
+```bash
+dart pub get
+```
+
+## Your First Module
+
+Let's start by creating a simple logging service and module:
+
+### 1. Create a Service
+
+```dart
+// lib/services/logger_service.dart
+class LoggerService {
+  void log(String message) {
+    print('[LOG] ${DateTime.now()}: $message');
+  }
+  
+  void error(String message) {
+    print('[ERROR] ${DateTime.now()}: $message');
+  }
+}
+```
+
+### 2. Create a Module
+
+```dart
+// lib/modules/core_module.dart
+import 'package:nest_core/nest_core.dart';
+import '../services/logger_service.dart';
+
+class CoreModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<LoggerService>(LoggerService());
+  }
+  
+  @override
+  List<Type> get exports => [LoggerService];
+}
+```
+
+### 3. Create the App Module
+
+```dart
+// lib/app_module.dart
+import 'package:nest_core/nest_core.dart';
+import 'modules/core_module.dart';
+
+class AppModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // App-level services go here
+  }
+}
+```
+
+### 4. Initialize the Application
+
+```dart
+// lib/main.dart
+import 'package:nest_core/nest_core.dart';
+import 'app_module.dart';
+
+void main() async {
+  // Create and initialize the container
+  final container = ApplicationContainer();
+  await container.registerModule(AppModule());
+  
+  // Use services
+  final logger = container.get<LoggerService>();
+  logger.log('Application started successfully!');
+}
+```
+
+## Adding More Services
+
+Let's expand our example with a user service:
+
+### 1. Create User Model
+
+```dart
+// lib/models/user.dart
+class User {
+  final int id;
+  final String name;
+  final String email;
+  
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+  
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+  };
+}
+```
+
+### 2. Create User Repository
+
+```dart
+// lib/repositories/user_repository.dart
+import '../models/user.dart';
+import '../services/logger_service.dart';
+
+class UserRepository {
+  final LoggerService _logger;
+  final List<User> _users = [];
+  
+  UserRepository(this._logger);
+  
+  List<User> findAll() {
+    _logger.log('Finding all users');
+    return List.unmodifiable(_users);
+  }
+  
+  User? findById(int id) {
+    _logger.log('Finding user by id: $id');
+    return _users.where((user) => user.id == id).firstOrNull;
+  }
+  
+  User create(String name, String email) {
+    _logger.log('Creating user: $name');
+    final user = User(
+      id: _users.length + 1,
+      name: name,
+      email: email,
+    );
+    _users.add(user);
+    return user;
+  }
+}
+```
+
+### 3. Create User Service
+
+```dart
+// lib/services/user_service.dart
+import '../models/user.dart';
+import '../repositories/user_repository.dart';
+import '../services/logger_service.dart';
+
+class UserService {
+  final UserRepository _repository;
+  final LoggerService _logger;
+  
+  UserService(this._repository, this._logger);
+  
+  List<User> getAllUsers() {
+    _logger.log('UserService: Getting all users');
+    return _repository.findAll();
+  }
+  
+  User? getUserById(int id) {
+    _logger.log('UserService: Getting user by id: $id');
+    return _repository.findById(id);
+  }
+  
+  User createUser(String name, String email) {
+    _logger.log('UserService: Creating user: $name');
+    return _repository.create(name, email);
+  }
+}
+```
+
+### 4. Create User Module
+
+```dart
+// lib/modules/user_module.dart
+import 'package:nest_core/nest_core.dart';
+import '../services/user_service.dart';
+import '../repositories/user_repository.dart';
+import 'core_module.dart';
+
+class UserModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // Register repository first
+    locator.registerSingleton<UserRepository>(
+      UserRepository(locator.get<LoggerService>()),
+    );
+    
+    // Register service that depends on repository
+    locator.registerSingleton<UserService>(
+      UserService(
+        locator.get<UserRepository>(),
+        locator.get<LoggerService>(),
+      ),
+    );
+  }
+  
+  @override
+  List<Type> get exports => [UserService];
+}
+```
+
+### 5. Update App Module
+
+```dart
+// lib/app_module.dart
+import 'package:nest_core/nest_core.dart';
+import 'modules/core_module.dart';
+import 'modules/user_module.dart';
+
+class AppModule extends Module {
+  @override
+  List<Module> get imports => [CoreModule(), UserModule()];
+  
+  @override
+  void providers(Locator locator) {
+    // App-level services go here
+  }
+}
+```
+
+### 6. Use the Services
+
+```dart
+// lib/main.dart
+import 'package:nest_core/nest_core.dart';
+import 'app_module.dart';
+
+void main() async {
+  // Initialize container
+  final container = ApplicationContainer();
+  await container.registerModule(AppModule());
+  
+  // Get services
+  final userService = container.get<UserService>();
+  
+  // Create some users
+  final alice = userService.createUser('Alice', 'alice@example.com');
+  final bob = userService.createUser('Bob', 'bob@example.com');
+  
+  // Get all users
+  final users = userService.getAllUsers();
+  print('All users: ${users.map((u) => u.toJson()).toList()}');
+  
+  // Get specific user
+  final user = userService.getUserById(1);
+  print('User 1: ${user?.toJson()}');
+}
+```
+
+## Service Registration Types
+
+Nest Dart supports different service registration patterns:
+
+### Singleton (Default)
+Services are created once and reused:
+
+```dart
+locator.registerSingleton<UserService>(UserService());
+```
+
+### Factory
+New instance created each time:
+
+```dart
+locator.registerFactory<UserService>(() => UserService());
+```
+
+### Lazy Singleton
+Created on first access:
+
+```dart
+locator.registerLazySingleton<UserService>(() => UserService());
+```
+
+## Module Lifecycle
+
+Modules support initialization and cleanup hooks:
+
+```dart
+class DatabaseModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<DatabaseService>(DatabaseService());
+  }
+  
+  @override
+  Future<void> onModuleInit(Locator locator, ModuleContext context) async {
+    final db = locator.get<DatabaseService>();
+    await db.connect();
+    print('Database connected');
+  }
+  
+  @override
+  Future<void> onModuleDestroy(Locator locator, ModuleContext context) async {
+    final db = locator.get<DatabaseService>();
+    await db.disconnect();
+    print('Database disconnected');
+  }
+}
+```
+
+## Error Handling
+
+Nest Dart provides clear error messages for common issues:
+
+### Service Not Exported
+```dart
+// This will throw ServiceNotExportedException
+final privateService = container.get<PrivateService>();
+```
+
+### Circular Dependencies
+Nest Dart automatically detects and prevents circular dependencies during module registration.
+
+### Missing Dependencies
+If a service depends on another service that isn't available, you'll get a clear error message.
+
+## Next Steps
+
+Now that you understand the basics, explore platform-specific guides:
+
+- [Flutter Integration](/flutter-guide) - Build modular Flutter apps
+- [Dart Frog Backend](/frog-guide) - Create REST APIs with dependency injection
+- [Testing Guide](/testing-guide) - Learn how to test your modular applications
+
+## Project Structure
+
+Here's a recommended project structure for Nest Dart applications:
+
+```
+lib/
+├── main.dart                 # Application entry point
+├── app_module.dart          # Root module
+├── models/                  # Data models
+│   ├── user.dart
+│   └── product.dart
+├── services/                # Business logic services
+│   ├── user_service.dart
+│   └── auth_service.dart
+├── repositories/            # Data access layer
+│   ├── user_repository.dart
+│   └── product_repository.dart
+├── modules/                 # Module definitions
+│   ├── core_module.dart
+│   ├── user_module.dart
+│   └── auth_module.dart
+└── config/                  # Configuration
+    └── app_config.dart
+```
+
+This structure keeps your code organized and makes it easy to understand the relationships between different parts of your application.
