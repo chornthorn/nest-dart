@@ -47,6 +47,7 @@ const config: ZudokuConfig = {
           items: [
             "/api-reference",
             "/examples",
+            "/roadmap",
           ],
         },
         {
