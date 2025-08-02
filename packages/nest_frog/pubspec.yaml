@@ -1,6 +1,6 @@
 name: nest_frog
 description: A starting point for Dart libraries or applications.
-version: 1.0.0
+version: 0.1.0
 resolution: workspace
 
 publish_to: none
