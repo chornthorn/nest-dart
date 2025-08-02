@@ -1,7 +1,7 @@
 import type { ZudokuConfig } from "zudoku";
 
 const config: ZudokuConfig = {
-  basePath: "https://chornthorn.github.io/nest-dart",
+  basePath: "/nest-dart",
   metadata: {
     title: "Nest Dart",
     description: "NestJS-inspired dependency injection framework for Dart",
