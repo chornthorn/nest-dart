@@ -1,6 +1,7 @@
 import type { ZudokuConfig } from "zudoku";
 
 const config: ZudokuConfig = {
+  basePath: "/nest-dart",
   metadata: {
     title: "Nest Dart",
     description: "NestJS-inspired dependency injection framework for Dart",
@@ -98,6 +99,17 @@ const config: ZudokuConfig = {
       "json",
       "yaml",
     ],
+  },
+  search: {
+    type: "pagefind",
+    ranking: {
+      termFrequency: 1,
+      pageLength: 1,
+      termSimilarity: 1,
+      termSaturation: 1,
+    },
+    maxResults: 10,
+    maxSubResults: 5,
   },
 };
 
