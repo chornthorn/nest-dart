@@ -12,7 +12,7 @@
   "dependencies": {
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0",
-    "zudoku": "0.57.1"
+    "zudoku": "0.59.0"
   },
   "devDependencies": {
     "@types/node": "^22",
