@@ -48,7 +48,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/dist
+          path: docs/dist/nest-dart
 
   deploy:
     if: github.ref == 'refs/heads/main'
