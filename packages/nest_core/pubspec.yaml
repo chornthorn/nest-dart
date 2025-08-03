@@ -12,7 +12,7 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
-  get_it: ^8.1.0
+  get_it: ^8.2.0
   logger: ^2.6.1
 
 dev_dependencies:
