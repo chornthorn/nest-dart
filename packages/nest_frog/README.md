@@ -275,9 +275,9 @@ class TestModule extends Module {
 
 ## Documentation
 
-- [Dart Frog Integration Guide](https://chornthorn.github.io/nest-dart/frog-guide)
-- [API Reference](https://chornthorn.github.io/nest-dart/api-reference)
-- [Examples](https://chornthorn.github.io/nest-dart/examples)
+- [Dart Frog Integration Guide](https://khode-io.github.io/nest-dart/frog-guide)
+- [API Reference](https://khode-io.github.io/nest-dart/api-reference)
+- [Examples](https://khode-io.github.io/nest-dart/examples)
 
 ## Related Packages
 

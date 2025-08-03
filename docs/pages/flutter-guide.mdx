@@ -14,7 +14,7 @@ Check [pub.dev](https://pub.dev) for the latest versions of Nest Dart packages b
 dependencies:
   flutter:
     sdk: flutter
-  nest_flutter: ^0.1.2
+  nest_flutter: ^0.1.3
 ```
 
 ## Quick Start
@@ -61,6 +61,42 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Nest Flutter Demo',
       home: HomePage(),
+    );
+  }
+}
+```
+
+### 2.1 With GoRouter Integration
+
+For apps using `go_router`, you can leverage the built-in routing integration:
+
+```dart
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+import 'modules/app_module.dart';
+
+void main() {
+  runApp(
+    ModularApp(
+      module: AppModule(),
+      child: MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'Nest Flutter Demo',
+      routerConfig: Modular.router((router) {
+        return GoRouter(
+          routes: router.configuration.routes,
+          initialLocation: '/',
+          debugLogDiagnostics: true,
+        );
+      }),
     );
   }
 }
@@ -340,6 +376,193 @@ class CounterWidget extends StatelessWidget {
             ),
           ],
         );
+      },
+    );
+  }
+}
+```
+
+## Module-Based Routing
+
+The `nest_flutter` package provides powerful routing capabilities through `go_router` integration, allowing you to define routes directly in your modules.
+
+### Basic Module Routing
+
+Define routes in your modules using the `routes` getter:
+
+```dart
+// lib/modules/user_module.dart
+import 'package:nest_flutter/nest_flutter.dart';
+import '../pages/user_list_page.dart';
+import '../pages/user_detail_page.dart';
+
+class UserModule extends Module {
+  @override
+  List<RouteBase> get routes => [
+    GoRoute(
+      path: '/users',
+      builder: (context, state) => UserListPage(),
+      routes: [
+        GoRoute(
+          path: '/:id',
+          builder: (context, state) {
+            final userId = state.pathParameters['id']!;
+            return UserDetailPage(userId: userId);
+          },
+        ),
+      ],
+    ),
+  ];
+
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserService>(UserService());
+  }
+}
+```
+
+### Route Prefixes
+
+Organize related routes under a common path prefix:
+
+```dart
+// lib/modules/admin_module.dart
+class AdminModule extends Module {
+  @override
+  String? get routePrefix => '/admin';
+
+  @override
+  List<RouteBase> get routes => [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => AdminDashboard(),
+    ),
+    GoRoute(
+      path: '/users',
+      builder: (context, state) => AdminUsersPage(),
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => AdminSettingsPage(),
+    ),
+  ];
+}
+```
+
+The routes above will be automatically prefixed:
+- `/admin/` → AdminDashboard
+- `/admin/users` → AdminUsersPage  
+- `/admin/settings` → AdminSettingsPage
+
+### Nested Module Routes
+
+Routes from imported modules are automatically collected:
+
+```dart
+class AppModule extends Module {
+  @override
+  List<Module> get imports => [
+    UserModule(),
+    AdminModule(),
+    ProductModule(),
+  ];
+
+  @override
+  List<RouteBase> get routes => [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => HomePage(),
+    ),
+  ];
+}
+```
+
+All routes from `UserModule`, `AdminModule`, and `ProductModule` will be available in the app.
+
+### Router Configuration
+
+Use `Modular.router()` to create a configured router:
+
+```dart
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      routerConfig: Modular.router((router) {
+        return GoRouter(
+          routes: router.configuration.routes,
+          initialLocation: '/users',
+          debugLogDiagnostics: true,
+          redirect: (context, state) {
+            // Add authentication checks
+            final authService = Modular.get<AuthService>();
+            if (!authService.isAuthenticated && state.uri.path.startsWith('/admin')) {
+              return '/login';
+            }
+            return null;
+          },
+        );
+      }),
+    );
+  }
+}
+```
+
+### Router Caching and Performance
+
+The router is automatically cached to prevent recreation during hot reloads:
+
+```dart
+// Clear router cache when needed (useful for testing)
+Modular.clearRouterCache();
+
+// Check if router is cached
+if (Modular.isRouterCached) {
+  print('Router is cached');
+}
+
+// Force router recreation
+final router = Modular.router(
+  (router) => GoRouter(routes: router.configuration.routes),
+  forceRecreate: true,
+);
+```
+
+### Navigation with Services
+
+Combine routing with dependency injection:
+
+```dart
+class NavigationService {
+  void goToUserDetail(String userId) {
+    GoRouter.of(context).go('/users/$userId');
+  }
+  
+  void goToAdminPanel() {
+    GoRouter.of(context).go('/admin');
+  }
+}
+
+class UserModule extends Module {
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<NavigationService>(NavigationService());
+  }
+}
+
+// Usage in widgets
+class UserTile extends StatelessWidget {
+  final User user;
+  
+  const UserTile({required this.user});
+  
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(user.name),
+      onTap: () {
+        final nav = Modular.get<NavigationService>();
+        nav.goToUserDetail(user.id);
       },
     );
   }
@@ -695,20 +918,23 @@ class UserServiceException implements Exception {
 }
 ```
 
-### 4. Navigation with Services
+### 4. Navigation with GoRouter Integration
 
-Integrate with Flutter navigation:
+With the new `go_router` integration, navigation becomes more powerful and type-safe:
 
 ```dart
 class NavigationService {
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-  
-  Future<T?> pushNamed<T>(String routeName, {Object? arguments}) {
-    return navigatorKey.currentState!.pushNamed<T>(routeName, arguments: arguments);
+  void goToUserDetail(String userId) {
+    // Use go_router's context-free navigation
+    GoRouter.of(navigatorKey.currentContext!).go('/users/$userId');
   }
   
-  void pop<T>([T? result]) {
-    navigatorKey.currentState!.pop<T>(result);
+  void goToAdminPanel() {
+    GoRouter.of(navigatorKey.currentContext!).go('/admin');
+  }
+  
+  void goBack() {
+    GoRouter.of(navigatorKey.currentContext!).pop();
   }
 }
 
@@ -717,20 +943,27 @@ class AppModule extends Module {
   void providers(Locator locator) {
     locator.registerSingleton<NavigationService>(NavigationService());
   }
+  
+  @override
+  List<RouteBase> get routes => [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => HomePage(),
+    ),
+  ];
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final navigationService = Modular.get<NavigationService>();
-    
-    return MaterialApp(
-      navigatorKey: navigationService.navigatorKey,
-      routes: {
-        '/': (context) => HomePage(),
-        '/users': (context) => UserPage(),
-        '/profile': (context) => ProfilePage(),
-      },
+    return MaterialApp.router(
+      routerConfig: Modular.router((router) {
+        return GoRouter(
+          routes: router.configuration.routes,
+          initialLocation: '/',
+          debugLogDiagnostics: true,
+        );
+      }),
     );
   }
 }
