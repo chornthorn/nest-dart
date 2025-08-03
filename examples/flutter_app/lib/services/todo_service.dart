@@ -16,6 +16,7 @@ class JsonPlaceholderTodoService implements TodoService {
 
   @override
   Future<List<Todo>> getAllTodos() async {
+    await Future.delayed(const Duration(seconds: 2));
     try {
       final response = await _client.get(
         Uri.parse('$_baseUrl/todos'),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models/todo.dart';
 import '../providers/todo_provider.dart';
-import 'todo_detail_view.dart';
 
 class TodoListView extends StatefulWidget {
   const TodoListView({super.key});
@@ -94,19 +94,6 @@ class _TodoListViewState extends State<TodoListView> {
       );
     }
 
-    if (todoProvider.todos.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No todos found'),
-          ],
-        ),
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: () => todoProvider.refreshTodos(),
       child: ListView.builder(
@@ -151,9 +138,7 @@ class _TodoListViewState extends State<TodoListView> {
   }
 
   void _navigateToTodoDetail(int todoId) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => TodoDetailView(todoId: todoId)),
-    );
+    context.push('/todos/$todoId');
   }
 
   void _showTodoByIdDialog() {

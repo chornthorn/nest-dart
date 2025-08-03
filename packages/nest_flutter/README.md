@@ -9,16 +9,17 @@ Flutter integration for Nest Dart - bringing dependency injection and modular ar
 - 📱 **Reactive Services** - ChangeNotifier support for state management
 - 🎨 **Context Access** - Get services from BuildContext
 - ⚡ **Static API** - Global service access with Modular class
+- 🚦 **Modular Routing** - go_router integration with module-based route organization
+- 🔗 **Route Prefixes** - Organize routes with automatic path prefixing
 
 ## Installation
 
 Add `nest_flutter` to your `pubspec.yaml`:
-
 ```yaml
 dependencies:
   flutter:
     sdk: flutter
-  nest_flutter: ^0.1.2
+  nest_flutter: ^0.1.3
 ```
 
 ## Quick Start
@@ -36,10 +37,24 @@ class AppModule extends Module {
   
   @override
   List<Type> get exports => [UserService];
+  
+  @override
+  List<RouteBase> get routes => [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => HomePage(),
+    ),
+    GoRoute(
+      path: '/users/:id',
+      builder: (context, state) => UserDetailPage(
+        userId: state.pathParameters['id']!,
+      ),
+    ),
+  ];
 }
 ```
 
-### 2. Wrap Your App
+### 2. Setup Your App with Router
 
 ```dart
 import 'package:flutter/material.dart';
@@ -57,9 +72,14 @@ void main() {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Nest Flutter Demo',
-      home: HomePage(),
+      routerConfig: Modular.router((router) {
+        return GoRouter(
+          routes: router.configuration.routes,
+          initialLocation: '/',
+        );
+      }),
     );
   }
 }
@@ -92,7 +112,10 @@ class _HomePageState extends State<HomePage> {
           if (snapshot.hasData) {
             return ListView(
               children: snapshot.data!
-                  .map((user) => ListTile(title: Text(user.name)))
+                  .map((user) => ListTile(
+                    title: Text(user.name),
+                    onTap: () => context.go('/users/${user.id}'),
+                  ))
                   .toList(),
             );
           }
@@ -231,9 +254,9 @@ class TestModule extends Module {
 
 ## Documentation
 
-- [Flutter Integration Guide](https://chornthorn.github.io/nest-dart/flutter-guide)
-- [API Reference](https://chornthorn.github.io/nest-dart/api-reference)
-- [Examples](https://chornthorn.github.io/nest-dart/examples)
+- [Flutter Integration Guide](https://khode-io.github.io/nest-dart/flutter-guide)
+- [API Reference](https://khode-io.github.io/nest-dart/api-reference)
+- [Examples](https://khode-io.github.io/nest-dart/examples)
 
 ## Related Packages
 

@@ -164,9 +164,9 @@ class DatabaseModule extends Module {
 
 ## Documentation
 
-- [Getting Started Guide](https://chornthorn.github.io/nest-dart/getting-started)
-- [API Reference](https://chornthorn.github.io/nest-dart/api-reference)
-- [Examples](https://chornthorn.github.io/nest-dart/examples)
+- [Getting Started Guide](https://khode-io.github.io/nest-dart/getting-started)
+- [API Reference](https://khode-io.github.io/nest-dart/api-reference)
+- [Examples](https://khode-io.github.io/nest-dart/examples)
 
 ## Contributing
 

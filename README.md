@@ -8,14 +8,19 @@ A NestJS-inspired dependency injection framework for Dart, bringing modular arch
 - 💉 **Dependency Injection** - Type-safe service resolution with GetIt
 - 🔒 **Access Control** - Services are private by default, must be explicitly exported
 - 🔧 **Multi-Platform** - Works with Flutter, Dart Frog, and pure Dart applications
+- 🚦 **Module-Based Routing** - GoRouter integration with automatic route collection
 
 ## Packages
 
-- **nest_core** - Core dependency injection and module system
-- **nest_flutter** - Flutter integration with provider support
-- **nest_frog** - Dart Frog backend integration
+| Package | Version | Description |
+|---------|---------|-------------|
+| **[nest_core](packages/nest_core)** | ![pub version](https://img.shields.io/pub/v/nest_core.svg) | Core dependency injection and module system |
+| **[nest_flutter](packages/nest_flutter)** | ![pub version](https://img.shields.io/pub/v/nest_flutter.svg) | Flutter integration with GoRouter and provider support |
+| **[nest_frog](packages/nest_frog)** | ![pub version](https://img.shields.io/pub/v/nest_frog.svg) | Dart Frog backend integration with middleware support |
 
 ## Quick Start
+
+### Core Application
 
 ```dart
 import 'package:nest_core/nest_core.dart';
@@ -26,22 +31,79 @@ class AppModule extends Module {
   
   @override
   void providers(Locator locator) {
-    // Register your services here
+    locator.registerSingleton<UserService>(UserService());
   }
   
   @override
-  List<Type> get exports => []; // Export services to other modules
+  List<Type> get exports => [UserService];
 }
 
 // Initialize the application
-final container = ApplicationContainer(AppModule());
-await container.initialize();
+final container = ApplicationContainer();
+await container.registerModule(AppModule());
+```
+
+### Flutter Integration
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:nest_flutter/nest_flutter.dart';
+
+void main() {
+  runApp(
+    ModularApp(
+      module: AppModule(),
+      child: MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      routerConfig: Modular.router((router) {
+        return GoRouter(
+          routes: router.configuration.routes,
+          initialLocation: '/',
+        );
+      }),
+    );
+  }
+}
+```
+
+### Module with Routes
+
+```dart
+class UserModule extends Module {
+  @override
+  List<RouteBase> get routes => [
+    GoRoute(
+      path: '/users',
+      builder: (context, state) => UserListPage(),
+    ),
+  ];
+
+  @override
+  void providers(Locator locator) {
+    locator.registerSingleton<UserService>(UserService());
+  }
+}
 ```
 
 ## Examples
 
-- **Flutter App** - Mobile app with modular architecture
-- **Frog Backend** - REST API server with dependency injection
+- **[Flutter App](examples/flutter_app)** - Mobile app with modular architecture and GoRouter integration
+- **[Frog Backend](examples/frog_backend)** - REST API server with dependency injection and middleware
+
+## Documentation
+
+- 📖 **[Getting Started](https://khode-io.github.io/nest-dart/getting-started)** - Quick introduction to Nest Dart
+- 🎯 **[Core Guide](https://khode-io.github.io/nest-dart/core-guide)** - Dependency injection fundamentals
+- 📱 **[Flutter Guide](https://khode-io.github.io/nest-dart/flutter-guide)** - Flutter integration and routing
+- 🐸 **[Frog Guide](https://khode-io.github.io/nest-dart/frog-guide)** - Dart Frog backend development
+- 🔧 **[API Reference](https://khode-io.github.io/nest-dart/api-reference)** - Complete API documentation
 
 ## Development
 
@@ -55,3 +117,7 @@ melos run test
 # Format code
 melos run format
 ```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

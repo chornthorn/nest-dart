@@ -2,42 +2,42 @@ part of 'core.dart';
 
 /// A ChangeNotifier wrapper for ApplicationContainer to enable reactive updates
 class ApplicationContainerNotifier extends ChangeNotifier {
-  final ApplicationContainer _container;
+  final nest_core.ApplicationContainer _container;
 
-  ApplicationContainerNotifier([ApplicationContainer? container])
-    : _container = container ?? ApplicationContainer();
+  ApplicationContainerNotifier([nest_core.ApplicationContainer? container])
+    : _container = container ?? nest_core.ApplicationContainer();
 
   /// Create with initial modules
   ApplicationContainerNotifier.withModules(
-    List<Module> modules, [
-    ApplicationContainer? container,
-  ]) : _container = container ?? ApplicationContainer() {
+    List<nest_core.Module> modules, [
+    nest_core.ApplicationContainer? container,
+  ]) : _container = container ?? nest_core.ApplicationContainer() {
     for (final module in modules) {
       _container.registerModule(module);
     }
   }
 
   /// Get the underlying container
-  ApplicationContainer get container => _container;
+  nest_core.ApplicationContainer get container => _container;
 
   /// Register a module (typically done during initialization)
-  void registerModule(Module module) {
+  void registerModule(nest_core.Module module) {
     _container.registerModule(module);
   }
 
   /// Register multiple modules (typically done during initialization)
-  void registerModules(List<Module> modules) {
+  void registerModules(List<nest_core.Module> modules) {
     _container.registerModules(modules);
   }
 
   /// Register a module and notify listeners (use for dynamic module registration)
-  void registerModuleWithNotification(Module module) {
+  void registerModuleWithNotification(nest_core.Module module) {
     _container.registerModule(module);
     notifyListeners();
   }
 
   /// Register multiple modules and notify listeners (use for dynamic module registration)
-  void registerModulesWithNotification(List<Module> modules) {
+  void registerModulesWithNotification(List<nest_core.Module> modules) {
     _container.registerModules(modules);
     notifyListeners();
   }
@@ -74,13 +74,13 @@ class ApplicationContainerNotifier extends ChangeNotifier {
   }
 
   /// Get all registered modules
-  List<Module> get modules => _container.modules;
+  List<nest_core.Module> get modules => _container.modules;
 
   /// Get the underlying GetIt instance (use with caution)
-  GetIt get getIt => _container.getIt;
+  nest_core.GetIt get getIt => _container.getIt;
 
   /// Get the module context (useful for testing and debugging)
-  ModuleContext get context => _container.context;
+  nest_core.ModuleContext get context => _container.context;
 }
 
 /// InheritedNotifier that provides ApplicationContainer to the widget tree
@@ -95,15 +95,15 @@ class ApplicationContainerProvider
   /// Create a provider with a new container
   ApplicationContainerProvider.create({
     super.key,
-    ApplicationContainer? container,
+    nest_core.ApplicationContainer? container,
     required super.child,
   }) : super(notifier: ApplicationContainerNotifier(container));
 
   /// Create a provider with initial modules
   ApplicationContainerProvider.withModules({
     super.key,
-    required List<Module> modules,
-    ApplicationContainer? container,
+    required List<nest_core.Module> modules,
+    nest_core.ApplicationContainer? container,
     required super.child,
   }) : super(
          notifier: ApplicationContainerNotifier.withModules(modules, container),
@@ -135,12 +135,14 @@ class ApplicationContainerProvider
   }
 
   /// Get the ApplicationContainer from the widget tree
-  static ApplicationContainer containerOf(BuildContext context) {
+  static nest_core.ApplicationContainer containerOf(BuildContext context) {
     return of(context).container;
   }
 
   /// Get the ApplicationContainer from the widget tree, or null if not found
-  static ApplicationContainer? maybeContainerOf(BuildContext context) {
+  static nest_core.ApplicationContainer? maybeContainerOf(
+    BuildContext context,
+  ) {
     return maybeOf(context)?.container;
   }
 }
