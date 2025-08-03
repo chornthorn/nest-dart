@@ -13,7 +13,7 @@ environment:
 # Add regular dependencies here.
 dependencies:
   nest_core: ^0.1.1
-  dart_frog: ^1.1.0
+  dart_frog: ^1.2.2
 
 dev_dependencies:
   lints: ^5.0.0
