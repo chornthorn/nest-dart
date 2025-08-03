@@ -14,10 +14,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # nest_core: ^0.1.1
+  nest_core: ^0.1.1
   go_router: any
-  nest_core:
-    path: ../../packages/nest_core
+  # nest_core:
+  #   path: ../../packages/nest_core
 
 dev_dependencies:
   lints: ^5.0.0
