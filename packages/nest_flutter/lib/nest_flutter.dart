@@ -5,7 +5,8 @@
 library;
 
 // Re-export nest_core for convenience
-export 'package:nest_core/nest_core.dart';
+export 'package:nest_core/nest_core.dart' hide Module;
+export 'package:go_router/go_router.dart';
 
 // Export Flutter-specific functionality
 export 'src/core.dart';

@@ -51,7 +51,7 @@ class Modular {
   }
 
   /// Get the container from context
-  static ApplicationContainer containerOf(BuildContext context) {
+  static nest_core.ApplicationContainer containerOf(BuildContext context) {
     return ApplicationContainerProvider.containerOf(context);
   }
 
@@ -69,7 +69,78 @@ class Modular {
   /// Internal method to clear the global container
   static void _clearGlobalContainer() {
     _globalContainer = null;
+    _cachedRouter = null; // Clear router cache when container is cleared
   }
+
+  /// Clear the cached router (useful for testing or when routes need to be refreshed)
+  /// Call this method if you need to force router recreation after module changes
+  static void clearRouterCache() {
+    _cachedRouter = null;
+  }
+
+  /// Get the cached router instance (for debugging purposes)
+  static GoRouter? get cachedRouter => _cachedRouter;
+
+  /// Check if router is currently cached
+  static bool get isRouterCached => _cachedRouter != null;
+
+  /// Create a GoRouter configuration from the root module
+  /// Allows customization through a configurator callback
+  /// Caches the router to prevent recreation during hot reloads
+  static GoRouter router(
+    GoRouter Function(GoRouter router) configurator, {
+    Module? rootModule,
+    bool forceRecreate = false,
+  }) {
+    // Return cached router if available and not forcing recreation
+    if (_cachedRouter != null && !forceRecreate) {
+      return _cachedRouter!;
+    }
+
+    // Get the root module from stored reference or use provided one
+    final module = rootModule ?? _rootModule;
+
+    if (module == null) {
+      throw FlutterError(
+        'Modular.router() called but no root module found.\n'
+        'Either provide a rootModule parameter or ensure ModularApp is initialized.',
+      );
+    }
+
+    // Collect all routes from the module hierarchy if it has route support
+    final routes = module.collectAllRoutes();
+
+    // Create the base router with collected routes
+    final baseRouter = GoRouter(
+      routes: routes,
+      initialLocation: '/',
+      debugLogDiagnostics: false,
+    );
+
+    // Apply custom configuration through the configurator
+    final configuredRouter = configurator(baseRouter);
+
+    // Cache the router to prevent recreation on hot reload
+    _cachedRouter = configuredRouter;
+
+    return configuredRouter;
+  }
+
+  /// Internal storage for the root module
+  static Module? _rootModule;
+
+  /// Internal storage for the cached router to prevent recreation on hot reload
+  static GoRouter? _cachedRouter;
+
+  /// Internal method to set the root module
+  static void _setRootModule(Module module) {
+    _rootModule = module;
+    // Clear cached router when root module changes
+    _cachedRouter = null;
+  }
+
+  /// Get the current root module
+  static Module? get rootModule => _rootModule;
 }
 
 /// ModularApp widget that initializes the module system
@@ -77,7 +148,7 @@ class Modular {
 class ModularApp extends StatefulWidget {
   final Module module;
   final Widget child;
-  final ApplicationContainer? container;
+  final nest_core.ApplicationContainer? container;
   final Widget? loading;
 
   const ModularApp({
@@ -104,7 +175,10 @@ class _ModularAppState extends State<ModularApp> {
 
   Future<void> _initializeContainer() async {
     // Create container
-    final container = widget.container ?? ApplicationContainer();
+    final container = widget.container ?? nest_core.ApplicationContainer();
+
+    // Store the root module for router configuration
+    Modular._setRootModule(widget.module);
 
     // Register module asynchronously
     await container.registerModule(widget.module);
